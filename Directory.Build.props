@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <PowerToysVersion>0.100.0</PowerToysVersion>
+
+    <PowerToysArchitecture
+      Condition="'$(PowerToysArchitecture)' == ''">x64</PowerToysArchitecture>
+
+    <PowerToysDepsDir>$(MSBuildThisFileDirectory).deps\powertoys\$(PowerToysVersion)\$(PowerToysArchitecture)</PowerToysDepsDir>
+  </PropertyGroup>
+</Project>

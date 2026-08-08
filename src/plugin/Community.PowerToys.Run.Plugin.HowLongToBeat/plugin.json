@@ -1,0 +1,14 @@
+{
+  "ID": "0ADE2E6A74FF4E1AADBAABE8F06FFCD0",
+  "ActionKeyword": "hltb",
+  "IsGlobal": false,
+  "Name": "HowLongToBeat",
+  "Author": "Sharnav",
+  "Version": "0.1.0",
+  "Language": "csharp",
+  "Website": "https://github.com/",
+  "ExecuteFileName": "Community.PowerToys.Run.Plugin.HowLongToBeat.dll",
+  "IcoPathDark": "Images\\howlongtobeat.dark.png",
+  "IcoPathLight": "Images\\howlongtobeat.light.png",
+  "DynamicLoading": false
+}
