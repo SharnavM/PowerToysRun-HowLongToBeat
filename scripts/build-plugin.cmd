@@ -6,6 +6,8 @@ cd /d "%~dp0.."
 set "PROJECT=src\plugin\Community.PowerToys.Run.Plugin.HowLongToBeat\Community.PowerToys.Run.Plugin.HowLongToBeat.csproj"
 set "DEPS=.deps\powertoys\0.100.0\x64\Wox.Plugin.dll"
 set "OUTPUT=artifacts\plugin\HowLongToBeat"
+set "BRIDGE_SOURCE=artifacts\bridge\hltb-bridge"
+set "BRIDGE_EXE=%BRIDGE_SOURCE%\hltb-bridge.exe"
 
 echo.
 echo ========================================
@@ -23,6 +25,14 @@ if not exist "%DEPS%" (
 
 if exist "%OUTPUT%" (
     rmdir /s /q "%OUTPUT%"
+)
+
+if not exist "%BRIDGE_EXE%" (
+    echo ERROR: Packaged HLTB bridge not found.
+    echo.
+    echo Run:
+    echo scripts\build-bridge.cmd
+    exit /b 1
 )
 
 dotnet build "%PROJECT%" ^
@@ -46,6 +56,25 @@ if not exist "%OUTPUT%\Community.PowerToys.Run.Plugin.HowLongToBeat.dll" (
 if not exist "%OUTPUT%\plugin.json" (
     echo.
     echo ERROR: plugin.json was not produced.
+    exit /b 1
+)
+
+echo.
+echo Copying packaged HLTB bridge...
+
+xcopy /E /I /Y ^
+    "%BRIDGE_SOURCE%\*" ^
+    "%OUTPUT%\Bridge\" >nul
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: Failed to copy HLTB bridge.
+    exit /b 1
+)
+
+if not exist "%OUTPUT%\Bridge\hltb-bridge.exe" (
+    echo.
+    echo ERROR: Bridge executable missing from plugin output.
     exit /b 1
 )
 

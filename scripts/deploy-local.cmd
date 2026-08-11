@@ -43,7 +43,7 @@ echo Plugin copied to:
 echo %DEST%
 echo.
 
-set "POWERTOYS_EXE="
+set "POWERTOYS_EXE=D:\Program Files\PowerToys\PowerToys.exe"
 
 if exist "%ProgramFiles%\PowerToys\PowerToys.exe" (
     set "POWERTOYS_EXE=%ProgramFiles%\PowerToys\PowerToys.exe"
