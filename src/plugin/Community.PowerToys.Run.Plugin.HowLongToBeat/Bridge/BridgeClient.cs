@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
 
-public sealed class BridgeClient : IDisposable
+public sealed class BridgeClient : IBridgeClient
 {
     private static readonly JsonSerializerOptions JsonOptions =
         new()
@@ -50,10 +50,14 @@ public sealed class BridgeClient : IDisposable
             requestTimeout ?? TimeSpan.FromSeconds(10);
     }
 
-    public static BridgeClient CreateDefault()
+    public static BridgeClient CreateDefault(
+    string pluginDirectory)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            pluginDirectory);
+
         var path = Path.Combine(
-            AppContext.BaseDirectory,
+            pluginDirectory,
             "Bridge",
             "hltb-bridge.exe");
 

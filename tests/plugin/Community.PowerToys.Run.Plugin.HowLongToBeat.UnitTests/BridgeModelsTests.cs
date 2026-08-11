@@ -43,7 +43,7 @@ public sealed class BridgeModelsTests
 
         Assert.IsNotNull(result);
         Assert.AreEqual(1, result.Count);
-        Assert.AreEqual(1, result.Results.Length);
+        Assert.HasCount(1, result.Results);
 
         var game = result.Results[0];
 

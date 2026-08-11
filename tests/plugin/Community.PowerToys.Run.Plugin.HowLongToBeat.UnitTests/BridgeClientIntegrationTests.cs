@@ -41,4 +41,21 @@ public sealed class BridgeClientIntegrationTests
 
         await client.ShutdownAsync();
     }
+
+    [TestMethod]
+    public void CreateDefaultUsesProvidedPluginDirectory()
+    {
+        var pluginDirectory =
+            Path.Combine(
+                Path.GetTempPath(),
+                "hltb-plugin-test");
+
+        using var client =
+            BridgeClient.CreateDefault(
+                pluginDirectory);
+
+        // Construction must succeed without requiring
+        // AppContext.BaseDirectory to contain the bridge.
+        Assert.IsNotNull(client);
+    }
 }
