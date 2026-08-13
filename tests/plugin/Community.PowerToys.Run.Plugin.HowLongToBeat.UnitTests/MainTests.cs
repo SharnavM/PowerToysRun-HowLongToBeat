@@ -78,8 +78,12 @@ public sealed class MainTests
             results);
 
         Assert.AreEqual(
-            "Searching HowLongToBeat for \"Elden Ring\"",
+            "Searching HowLongToBeat…",
             results[0].Title);
+
+        Assert.AreEqual(
+            "Looking up \"Elden Ring\"",
+            results[0].SubTitle);
 
         Assert.AreEqual(0, bridge.SearchCallCount);
     }
@@ -276,6 +280,105 @@ public sealed class MainTests
             secondResults[0].Title);
     }
 
+    
+    [TestMethod]
+    public void DlcModifierUsesDlcOnlyBridgeMode()
+    {
+        var bridge =
+            new FakeBridgeClient
+            {
+                SearchHandler =
+                    (_, _, _) =>
+                        Task.FromResult(
+                            SearchResponse(
+                                EldenRing())),
+            };
+
+        using var plugin =
+            new PluginMain(bridge);
+
+        var query =
+            new Query(
+                "hltb Elden Ring --dlc",
+                "hltb");
+
+        plugin.Query(query);
+
+        plugin.Query(
+            query,
+            delayedExecution: true);
+
+        Assert.AreEqual(
+            BridgeSearchMode.DlcOnly,
+            bridge.LastSearchMode);
+    }
+
+    [TestMethod]
+    public void InvalidModifierDoesNotSearchBridge()
+    {
+        var bridge =
+            new FakeBridgeClient();
+
+        using var plugin =
+            new PluginMain(bridge);
+
+        var query =
+            new Query(
+                "hltb Elden Ring --year banana",
+                "hltb");
+
+        var immediate =
+            plugin.Query(query);
+
+        Assert.AreEqual(
+            "Invalid year",
+            immediate[0].Title);
+
+        Assert.AreEqual(
+            0,
+            bridge.SearchCallCount);
+    }
+
+    [TestMethod]
+    public void DirectIdUsesGetByIdInsteadOfSearch()
+    {
+        var bridge =
+            new FakeBridgeClient
+            {
+                GetByIdHandler =
+                    (_, _) =>
+                        Task.FromResult<BridgeGame?>(
+                            EldenRing()),
+            };
+
+        using var plugin =
+            new PluginMain(bridge);
+
+        var query =
+            new Query(
+                "hltb id:68151",
+                "hltb");
+
+        plugin.Query(query);
+
+        var results =
+            plugin.Query(
+                query,
+                delayedExecution: true);
+
+        Assert.AreEqual(
+            0,
+            bridge.SearchCallCount);
+
+        Assert.AreEqual(
+            1,
+            bridge.GetByIdCallCount);
+
+        Assert.AreEqual(
+            "Elden Ring (2022)",
+            results[0].Title);
+    }
+
     private static BridgeSearchResult SearchResponse(
         params BridgeGame[] games)
     {
@@ -332,6 +435,28 @@ public sealed class MainTests
             Task<BridgeSearchResult>>?
             SearchHandler { get; set; }
 
+        public BridgeSearchMode? LastSearchMode
+        {
+            get;
+            private set;
+        }
+
+        public int GetByIdCallCount
+        {
+            get;
+            private set;
+        }
+
+        public Func<
+            int,
+            CancellationToken,
+            Task<BridgeGame?>>?
+            GetByIdHandler
+        {
+            get;
+            set;
+        }
+
         public Task<BridgePingResult> PingAsync(
             CancellationToken cancellationToken = default)
         {
@@ -349,6 +474,8 @@ public sealed class MainTests
         {
             SearchCallCount++;
 
+            LastSearchMode = mode;
+
             if (SearchHandler is null)
             {
                 return Task.FromResult(
@@ -365,8 +492,17 @@ public sealed class MainTests
             int gameId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<BridgeGame?>(
-                null);
+            GetByIdCallCount++;
+
+            if (GetByIdHandler is null)
+            {
+                return Task.FromResult<BridgeGame?>(
+                    null);
+            }
+
+            return GetByIdHandler(
+                gameId,
+                cancellationToken);
         }
 
         public Task ShutdownAsync(

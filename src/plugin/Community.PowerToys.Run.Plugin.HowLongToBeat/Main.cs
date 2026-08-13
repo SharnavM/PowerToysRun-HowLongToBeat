@@ -2,6 +2,8 @@ using System.Diagnostics;
 
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Formatting;
+using Community.PowerToys.Run.Plugin.HowLongToBeat.Parsing;
+using Community.PowerToys.Run.Plugin.HowLongToBeat.Ranking;
 
 using Wox.Plugin;
 
@@ -73,10 +75,18 @@ public sealed class Main :
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var rawQuery =
+            query.Search.Trim();
+
         MarkQueryChanged();
 
+        var parsed =
+            HltbQueryParser.Parse(
+                rawQuery);
+
         return CreateImmediateResults(
-            query.Search.Trim());
+            rawQuery,
+            parsed);
     }
 
     public List<Result> Query(
@@ -94,38 +104,71 @@ public sealed class Main :
     }
 
     private List<Result> ExecuteDelayedQuery(
-        Query query)
-    {
-        var search =
+    Query query)
+{
+        var rawQuery =
             query.Search.Trim();
 
-        if (search.Length < MinimumSearchLength)
+        var parsed =
+            HltbQueryParser.Parse(
+                rawQuery);
+
+        if (!parsed.IsValid)
+        {
+            return
+            [
+                CreateInfoResult(
+                    parsed.ErrorTitle!,
+                    parsed.ErrorMessage!,
+                    rawQuery),
+            ];
+        }
+
+        if (
+            !parsed.IsIdLookup
+            && (
+                string.IsNullOrWhiteSpace(
+                    parsed.SearchText)
+                || parsed.SearchText.Length <
+                    MinimumSearchLength
+            ))
         {
             return [];
         }
 
         var generation =
-            Volatile.Read(ref _queryGeneration);
+            Volatile.Read(
+                ref _queryGeneration);
 
         var cancellation =
             BeginSearch();
 
         try
         {
-        var bridge =
-            _bridge
-            ?? throw new BridgeException(
-                "bridge_not_initialized",
-                "HLTB bridge was not initialized.");
+            var bridge =
+                _bridge
+                ?? throw new BridgeException(
+                    "bridge_not_initialized",
+                    "HLTB bridge was not initialized.");
 
-        var response =
-            bridge
-                .SearchAsync(
-                    search,
-                    BridgeSearchMode.All,
-                    cancellation.Token)
-                .GetAwaiter()
-                .GetResult();
+            if (parsed.IsIdLookup)
+            {
+                return ExecuteIdLookup(
+                    bridge,
+                    parsed,
+                    rawQuery,
+                    generation,
+                    cancellation);
+            }
+
+            var response =
+                bridge
+                    .SearchAsync(
+                        parsed.SearchText!,
+                        parsed.SearchMode,
+                        cancellation.Token)
+                    .GetAwaiter()
+                    .GetResult();
 
             if (
                 cancellation.IsCancellationRequested
@@ -146,12 +189,17 @@ public sealed class Main :
                 [
                     CreateInfoResult(
                         "No HowLongToBeat results",
-                        $"No matches found for \"{search}\".",
-                        search),
+                        $"No matches found for \"{parsed.SearchText}\".",
+                        rawQuery),
                 ];
             }
 
-            return games
+            var ranked =
+                GameRanker.Rank(
+                    games,
+                    parsed);
+
+            return ranked
                 .Take(MaximumResults)
                 .Select(
                     (game, index) =>
@@ -179,7 +227,7 @@ public sealed class Main :
             [
                 CreateBridgeErrorResult(
                     exception,
-                    search),
+                    rawQuery),
             ];
         }
         catch (Exception)
@@ -198,7 +246,7 @@ public sealed class Main :
                 CreateInfoResult(
                     "HowLongToBeat search failed",
                     "An unexpected search error occurred.",
-                    search),
+                    rawQuery),
             ];
         }
         finally
@@ -208,9 +256,10 @@ public sealed class Main :
     }
 
     private List<Result> CreateImmediateResults(
-        string search)
+    string rawQuery,
+    ParsedHltbQuery parsed)
     {
-        if (string.IsNullOrWhiteSpace(search))
+        if (string.IsNullOrWhiteSpace(rawQuery))
         {
             return
             [
@@ -221,6 +270,31 @@ public sealed class Main :
             ];
         }
 
+        if (!parsed.IsValid)
+        {
+            return
+            [
+                CreateInfoResult(
+                    parsed.ErrorTitle!,
+                    parsed.ErrorMessage!,
+                    rawQuery),
+            ];
+        }
+
+        if (parsed.IsIdLookup)
+        {
+            return
+            [
+                CreateInfoResult(
+                    "Looking up HowLongToBeat game…",
+                    $"Game ID {parsed.GameId}",
+                    rawQuery),
+            ];
+        }
+
+        var search =
+            parsed.SearchText!;
+
         if (search.Length < MinimumSearchLength)
         {
             return
@@ -228,17 +302,54 @@ public sealed class Main :
                 CreateInfoResult(
                     "Keep typing",
                     "Enter at least 2 characters.",
-                    search),
+                    rawQuery),
             ];
         }
 
         return
         [
             CreateInfoResult(
-                $"Searching HowLongToBeat for \"{search}\"",
-                "Results will appear after you stop typing.",
-                search),
+                "Searching HowLongToBeat…",
+                BuildSearchDescription(parsed),
+                rawQuery),
         ];
+    }
+
+    private static string BuildSearchDescription(
+    ParsedHltbQuery parsed)
+    {
+        var parts =
+            new List<string>
+            {
+                $"Looking up \"{parsed.SearchText}\"",
+            };
+
+        if (parsed.Year.HasValue)
+        {
+            parts.Add(
+                $"Year {parsed.Year}");
+        }
+
+        if (parsed.Platform is not null)
+        {
+            parts.Add(
+                parsed.Platform);
+        }
+
+        switch (parsed.SearchMode)
+        {
+            case BridgeSearchMode.DlcOnly:
+                parts.Add("DLC only");
+                break;
+
+            case BridgeSearchMode.HideDlc:
+                parts.Add("No DLC/mods");
+                break;
+        }
+
+        return string.Join(
+            " • ",
+            parts);
     }
 
     private static Result CreateGameResult(
@@ -399,6 +510,49 @@ public sealed class Main :
 
             return cancellation;
         }
+    }
+
+    private List<Result> ExecuteIdLookup(
+    IBridgeClient bridge,
+    ParsedHltbQuery parsed,
+    string rawQuery,
+    long generation,
+    CancellationTokenSource cancellation)
+    {
+        var game =
+            bridge
+                .GetByIdAsync(
+                    parsed.GameId!.Value,
+                    cancellation.Token)
+                .GetAwaiter()
+                .GetResult();
+
+        if (
+            cancellation.IsCancellationRequested
+            || generation !=
+                Volatile.Read(
+                    ref _queryGeneration))
+        {
+            return [];
+        }
+
+        if (game is null)
+        {
+            return
+            [
+                CreateInfoResult(
+                    "HowLongToBeat game not found",
+                    $"No game found for ID {parsed.GameId}.",
+                    rawQuery),
+            ];
+        }
+
+        return
+        [
+            CreateGameResult(
+                game,
+                0),
+        ];
     }
 
     private void EndSearch(
