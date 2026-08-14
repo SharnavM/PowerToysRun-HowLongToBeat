@@ -28,6 +28,11 @@
       <Private>true</Private>
     </Reference>
 
+    <Reference Include="PowerToys.Settings.UI.Lib">
+      <HintPath>$(PowerToysDepsDir)\PowerToys.Settings.UI.Lib.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+
     <Reference Include="System.IO.Abstractions">
       <HintPath>$(PowerToysDepsDir)\System.IO.Abstractions.dll</HintPath>
       <Private>true</Private>

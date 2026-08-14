@@ -21,6 +21,10 @@
       <HintPath>$(PowerToysDepsDir)\Wox.Plugin.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="PowerToys.Settings.UI.Lib">
+      <HintPath>$(PowerToysDepsDir)\PowerToys.Settings.UI.Lib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using System.Windows.Controls;
 
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Formatting;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Parsing;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Ranking;
+using Community.PowerToys.Run.Plugin.HowLongToBeat.Caching;
+using Microsoft.PowerToys.Settings.UI.Library;
 
 using Wox.Plugin;
 
@@ -12,20 +15,31 @@ namespace Community.PowerToys.Run.Plugin.HowLongToBeat;
 public sealed class Main :
     IPlugin,
     IDelayedExecutionPlugin,
+    ISettingProvider,
     IDisposable
 {
     private const int MinimumSearchLength = 2;
     private const int MaximumResults = 8;
+    private const string BridgeIdleTimeoutOptionKey =
+        "BridgeIdleTimeoutMinutes";
+    private const int
+        DefaultBridgeIdleTimeoutMinutes = 10;
+    private const int
+        MaximumBridgeIdleTimeoutMinutes = 120;
 
     private IBridgeClient? _bridge;
 
     private readonly object _searchLock = new();
+    private readonly SearchCache _searchCache =
+        new();
 
     private CancellationTokenSource?
         _activeSearchCancellation;
 
     private long _queryGeneration;
     private bool _disposed;
+    private int _bridgeIdleTimeoutMinutes =
+    DefaultBridgeIdleTimeoutMinutes;
 
         public Main()
     {
@@ -48,6 +62,42 @@ public sealed class Main :
     public string Description =>
         "Search game completion times on HowLongToBeat.";
 
+    public IEnumerable<PluginAdditionalOption>
+        AdditionalOptions =>
+    [
+        new PluginAdditionalOption
+        {
+            Key =
+                BridgeIdleTimeoutOptionKey,
+
+            DisplayLabel =
+                "Bridge idle shutdown (minutes)",
+
+            DisplayDescription =
+                "Automatically stop the HowLongToBeat "
+                + "helper process after this many minutes "
+                + "without bridge activity. Set 0 to keep "
+                + "it running until PowerToys exits.",
+
+            PluginOptionType =
+                PluginAdditionalOption
+                    .AdditionalOptionType
+                    .Numberbox,
+
+            NumberValue =
+                DefaultBridgeIdleTimeoutMinutes,
+
+            NumberBoxMin = 0,
+
+            NumberBoxMax =
+                MaximumBridgeIdleTimeoutMinutes,
+
+            NumberBoxSmallChange = 1,
+
+            NumberBoxLargeChange = 10,
+        },
+    ];
+
     public void Init(PluginInitContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -64,8 +114,11 @@ public sealed class Main :
         }
 
         _bridge ??=
-            BridgeClient.CreateDefault(
-                pluginDirectory);
+            new IdleShutdownBridgeClient(
+                BridgeClient.CreateDefault(
+                    pluginDirectory),
+                ToIdleTimeout(
+                    _bridgeIdleTimeoutMinutes));
 
         // Creating BridgeClient does not start Python.
         // The process still starts lazily on first request.
@@ -161,14 +214,35 @@ public sealed class Main :
                     cancellation);
             }
 
-            var response =
-                bridge
-                    .SearchAsync(
+            BridgeSearchResult response;
+
+            if (
+                !_searchCache.TryGet(
+                    parsed.SearchText!,
+                    parsed.SearchMode,
+                    out response))
+            {
+                response =
+                    bridge
+                        .SearchAsync(
+                            parsed.SearchText!,
+                            parsed.SearchMode,
+                            cancellation.Token)
+                        .GetAwaiter()
+                        .GetResult();
+
+                if (
+                    !cancellation.IsCancellationRequested
+                    && generation ==
+                        Volatile.Read(
+                            ref _queryGeneration))
+                {
+                    _searchCache.Set(
                         parsed.SearchText!,
                         parsed.SearchMode,
-                        cancellation.Token)
-                    .GetAwaiter()
-                    .GetResult();
+                        response);
+                }
+            }
 
             if (
                 cancellation.IsCancellationRequested
@@ -570,6 +644,55 @@ public sealed class Main :
         }
 
         cancellation.Dispose();
+    }
+
+    public void UpdateSettings(
+        PowerLauncherPluginSettings settings)
+    {
+        var minutes =
+            DefaultBridgeIdleTimeoutMinutes;
+
+        var option =
+            settings?
+                .AdditionalOptions?
+                .FirstOrDefault(
+                    item =>
+                        item.Key ==
+                        BridgeIdleTimeoutOptionKey);
+
+        if (option is not null)
+        {
+            minutes =
+                Math.Clamp(
+                    (int)Math.Round(
+                        option.NumberValue,
+                        MidpointRounding.AwayFromZero),
+                    0,
+                    MaximumBridgeIdleTimeoutMinutes);
+        }
+
+        _bridgeIdleTimeoutMinutes =
+            minutes;
+
+        if (_bridge is
+            IdleShutdownBridgeClient idleBridge)
+        {
+            idleBridge.SetIdleTimeout(
+                ToIdleTimeout(minutes));
+        }
+    }
+
+    public Control CreateSettingPanel()
+    {
+        throw new NotImplementedException();
+    }
+
+    private static TimeSpan ToIdleTimeout(
+        int minutes)
+    {
+        return minutes == 0
+            ? TimeSpan.Zero
+            : TimeSpan.FromMinutes(minutes);
     }
 
     public void Dispose()

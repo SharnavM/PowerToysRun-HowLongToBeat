@@ -379,6 +379,49 @@ public sealed class MainTests
             results[0].Title);
     }
 
+    [TestMethod]
+    public void RankingModifiersReuseCachedSearchResponse()
+    {
+        var bridge =
+            new FakeBridgeClient
+            {
+                SearchHandler =
+                    (_, _, _) =>
+                        Task.FromResult(
+                            SearchResponse(
+                                EldenRing())),
+            };
+
+        using var plugin =
+            new PluginMain(bridge);
+
+        var first =
+            new Query(
+                "hltb Elden Ring",
+                "hltb");
+
+        plugin.Query(first);
+
+        plugin.Query(
+            first,
+            delayedExecution: true);
+
+        var second =
+            new Query(
+                "hltb Elden Ring --year 2022",
+                "hltb");
+
+        plugin.Query(second);
+
+        plugin.Query(
+            second,
+            delayedExecution: true);
+
+        Assert.AreEqual(
+            1,
+            bridge.SearchCallCount);
+    }
+
     private static BridgeSearchResult SearchResponse(
         params BridgeGame[] games)
     {
