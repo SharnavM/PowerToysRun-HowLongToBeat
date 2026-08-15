@@ -20,7 +20,10 @@ public sealed class PluginSettingsTests
                 new FakeBridgeClient());
 
         var option =
-            plugin.AdditionalOptions.Single();
+        plugin.AdditionalOptions.Single(
+            item =>
+                item.Key ==
+                "BridgeIdleTimeoutMinutes");
 
         Assert.AreEqual(
             "BridgeIdleTimeoutMinutes",

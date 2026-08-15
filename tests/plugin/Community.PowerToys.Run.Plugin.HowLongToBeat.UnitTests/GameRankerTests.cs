@@ -130,10 +130,11 @@ public sealed class GameRankerTests
               mod,
               query
             );
-        Assert.IsTrue(
-          baseScore > modScore,
-          $"Expected base game score {baseScore} " +
-          $"to exceed mod score {modScore}.");
+        Assert.IsGreaterThan(
+            modScore,
+            baseScore,
+            $"Expected base game score {baseScore} " +
+            $"to exceed mod score {modScore}.");
     }
 
     [TestMethod]

@@ -39,7 +39,7 @@ public sealed class GameResultFormatterTests
     public void MissingDurationUsesDash()
     {
         Assert.AreEqual(
-            "—",
+            "-",
             GameResultFormatter.FormatDuration(
                 null));
     }
@@ -66,5 +66,41 @@ public sealed class GameResultFormatterTests
         Assert.AreEqual(
             "Expansion [DLC] (2024)",
             GameResultFormatter.BuildTitle(game));
+    }
+
+    [TestMethod]
+    public void BuildsClipboardSummary()
+    {
+        var game =
+            new BridgeGame(
+                68151,
+                "Elden Ring",
+                null,
+                "game",
+                2022,
+                ["PC"],
+                216306,
+                364346,
+                489602,
+                null,
+                1.0,
+                null,
+                null);
+
+        var text =
+            GameResultFormatter
+                .BuildClipboardText(game);
+
+        StringAssert.Contains(
+            text,
+            "Elden Ring (2022)");
+
+        StringAssert.Contains(
+            text,
+            "Main: 60h 5m");
+
+        StringAssert.Contains(
+            text,
+            "Completionist:");
     }
 }

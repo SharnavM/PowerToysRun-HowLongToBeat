@@ -197,8 +197,11 @@ public sealed class MainTests
                 delayedExecution: true);
 
         Assert.AreEqual(
-            "HowLongToBeat is unavailable",
+            "HowLongToBeat unavailable - search in browser",
             results[0].Title);
+        Assert.AreEqual(
+            "Press Enter to continue on howlongtobeat.com.",
+            results[0].SubTitle);
     }
 
     [TestMethod]
@@ -420,6 +423,81 @@ public sealed class MainTests
         Assert.AreEqual(
             1,
             bridge.SearchCallCount);
+    }
+
+    [TestMethod]
+    public async Task SearchDelayDefersBridgeRequest()
+    {
+        var bridge =
+            new FakeBridgeClient
+            {
+                SearchHandler =
+                    (_, _, _) =>
+                        Task.FromResult(
+                            SearchResponse(
+                                EldenRing())),
+            };
+
+        using var plugin =
+            new PluginMain(
+                bridge,
+                searchDelayMilliseconds: 250);
+
+        var query =
+            new Query(
+                "hltb Elden Ring",
+                "hltb");
+
+        plugin.Query(query);
+
+        var delayedTask =
+            Task.Run(
+                () => plugin.Query(
+                    query,
+                    delayedExecution: true));
+
+        await Task.Delay(60);
+
+        Assert.AreEqual(
+            0,
+            bridge.SearchCallCount);
+
+        var results =
+            await delayedTask;
+
+        Assert.AreEqual(
+            1,
+            bridge.SearchCallCount);
+
+        Assert.HasCount(
+            1,
+            results);
+    }
+
+    [TestMethod]
+    public void SearchDelayDefaultsToFourHundredMilliseconds()
+    {
+        using var plugin =
+            new PluginMain(
+                new FakeBridgeClient());
+
+        var option =
+            plugin.AdditionalOptions.Single(
+                item =>
+                    item.Key ==
+                    "SearchDelayMilliseconds");
+
+        Assert.AreEqual(
+            400d,
+            option.NumberValue);
+
+        Assert.AreEqual(
+            0d,
+            option.NumberBoxMin);
+
+        Assert.AreEqual(
+            2000d,
+            option.NumberBoxMax);
     }
 
     private static BridgeSearchResult SearchResponse(

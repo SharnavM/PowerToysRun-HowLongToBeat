@@ -8,7 +8,7 @@ public static class GameResultFormatter
     {
         if (seconds is null or <= 0)
         {
-            return "—";
+            return "-";
         }
 
         var totalMinutes = (int)Math.Round(
@@ -85,5 +85,43 @@ public static class GameResultFormatter
         }
 
         return string.Join(" • ", parts);
+    }
+
+    public static string BuildClipboardText(
+        BridgeGame game)
+    {
+        ArgumentNullException.ThrowIfNull(
+            game);
+
+        var lines =
+            new List<string>
+            {
+                BuildTitle(game),
+            };
+
+        if (game.MainSeconds is > 0)
+        {
+            lines.Add(
+                $"Main: " +
+                $"{FormatDuration(game.MainSeconds)}");
+        }
+
+        if (game.MainExtraSeconds is > 0)
+        {
+            lines.Add(
+                $"Main + Extras: " +
+                $"{FormatDuration(game.MainExtraSeconds)}");
+        }
+
+        if (game.CompletionistSeconds is > 0)
+        {
+            lines.Add(
+                $"Completionist: " +
+                $"{FormatDuration(game.CompletionistSeconds)}");
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            lines);
     }
 }
