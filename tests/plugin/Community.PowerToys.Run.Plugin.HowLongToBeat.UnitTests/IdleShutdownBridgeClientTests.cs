@@ -127,7 +127,7 @@ public sealed class IdleShutdownBridgeClientTests
             return Task.FromResult(
                 new BridgePingResult(
                     1,
-                    "0.1.0"));
+                    TestProjectInfo.ProjectVersion));
         }
 
         public Task<BridgeSearchResult> SearchAsync(

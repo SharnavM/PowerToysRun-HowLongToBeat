@@ -36,7 +36,7 @@ public sealed class BridgeClientIntegrationTests
             ping.ProtocolVersion);
 
         Assert.AreEqual(
-            "0.1.0",
+            TestProjectInfo.ProjectVersion,
             ping.BridgeVersion);
 
         await client.ShutdownAsync();

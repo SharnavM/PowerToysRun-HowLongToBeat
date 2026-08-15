@@ -7,6 +7,7 @@ from hltb_bridge.protocol import (
 )
 from hltb_bridge.provider import SearchMode
 from hltb_bridge.service import BridgeService
+from hltb_bridge import __version__
 
 
 def make_game() -> GameResult:
@@ -71,7 +72,7 @@ async def test_ping():
     )
 
     assert result["protocolVersion"] == 1
-    assert result["bridgeVersion"] == "0.1.0"
+    assert result["bridgeVersion"] == __version__
 
 
 @pytest.mark.asyncio

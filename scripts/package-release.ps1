@@ -1,4 +1,5 @@
 param(
+    [ValidateSet("x64")]
     [string]$Architecture = "x64"
 )
 
@@ -50,6 +51,14 @@ if (-not (Test-Path $ThirdPartySource)) {
     throw "Third-party license directory not found."
 }
 
+$ProjectLicense = Join-Path `
+    $Root `
+    "LICENSE"
+
+if (-not (Test-Path $ProjectLicense)) {
+    throw "Project LICENSE file not found."
+}
+
 $ArchiveName = `
     "PowerToysRun-HowLongToBeat-v$Version-$Architecture.zip"
 
@@ -98,6 +107,11 @@ Copy-Item `
     -Recurse `
     -Force
 
+Copy-Item `
+    -Path $ProjectLicense `
+    -Destination (Join-Path $StagingPlugin "LICENSE") `
+    -Force
+
 Get-ChildItem `
     $StagingPlugin `
     -Recurse `
@@ -105,6 +119,7 @@ Get-ChildItem `
     Remove-Item -Force
 
 $RequiredFiles = @(
+    "LICENSE",
     "plugin.json",
     "Community.PowerToys.Run.Plugin.HowLongToBeat.dll",
     "Bridge\hltb-bridge.exe"

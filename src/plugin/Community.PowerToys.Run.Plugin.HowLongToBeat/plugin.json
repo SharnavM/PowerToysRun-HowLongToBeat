@@ -6,7 +6,7 @@
   "Author": "Sharnav",
   "Version": "0.1.0",
   "Language": "csharp",
-  "Website": "https://github.com/",
+  "Website": "https://github.com/SharnavM/PowerToysRun-HowLongToBeat",
   "ExecuteFileName": "Community.PowerToys.Run.Plugin.HowLongToBeat.dll",
   "IcoPathDark": "Images\\howlongtobeat.dark.png",
   "IcoPathLight": "Images\\howlongtobeat.light.png",

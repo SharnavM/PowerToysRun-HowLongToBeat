@@ -10,10 +10,6 @@ VERSION_FILE = ROOT / "VERSION"
 
 TARGETS = [
     (
-        ROOT / "Directory.Build.props",
-        re.compile(r"(<PluginVersion>)([^<]+)(</PluginVersion>)"),
-    ),
-    (
         ROOT
         / "src"
         / "plugin"

@@ -131,7 +131,7 @@ public sealed class ResilientBridgeClientTests
                 Task.FromResult(
                     new BridgePingResult(
                         1,
-                        "0.1.0"));
+                        TestProjectInfo.ProjectVersion));
 
         public Task<BridgeGame?> GetByIdAsync(
             int gameId,

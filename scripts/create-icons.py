@@ -80,7 +80,7 @@ def main() -> None:
 
     write_icon(IMAGE_DIR / "howlongtobeat.light.png")
 
-    print("Placeholder icons created.")
+    print("Icons created.")
 
 
 if __name__ == "__main__":

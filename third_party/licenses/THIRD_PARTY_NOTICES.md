@@ -28,6 +28,7 @@ Included notices cover:
 - beautifulsoup4
 - soupsieve
 - typing-extensions
+- llhttp
 
 ## Maintenance note
 

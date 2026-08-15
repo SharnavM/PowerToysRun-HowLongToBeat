@@ -21,7 +21,7 @@ An unofficial PowerToys Run plugin that lets you search games, compare Main Stor
 
 > **Demo placeholder**
 >
-> A GIF or short video demonstrating searches, modifiers, settings, and result actions will be added here.
+> A GIF or short video demonstrating searches, modifiers, settings, and result actions will be added here using GitHub User Attachments.
 
 ## Features
 
@@ -140,11 +140,11 @@ When upgrading, close PowerToys, remove the previous `HowLongToBeat` plugin fold
 
 ## Building from Source
 
-> **ARM64 users:** Prebuilt ARM64 releases are not provided yet. ARM64 users are requested to build the plugin from source for now.
+> **Architecture support:** The current release and build scripts are tested for Windows x64 only. ARM64 support is planned but is not yet implemented or validated end to end.
 
-The project is developed and tested on Windows and currently targets the PowerToys Run plugin interface used by PowerToys `0.100.0`.
+The project is developed and tested on Windows and currently targets the PowerToys version specified in `POWERTOYS_VERSION`.
 
-> **Building against another PowerToys version:** This repository is tested against PowerToys `0.100.0`. To build against a different version, update the PowerToys build/reference version, run `scripts\sync-powertoys-deps.cmd` again, and rebuild and test the project. Compatibility with newer PowerToys versions is not guaranteed until verified.
+> **Building against another PowerToys version:** Update `POWERTOYS_VERSION`, run `scripts\sync-powertoys-deps.cmd` again, and rebuild and test the project. Compatibility with other PowerToys versions is not guaranteed until verified.
 
 ### Prerequisites
 
@@ -157,7 +157,7 @@ The project is developed and tested on Windows and currently targets the PowerTo
 Clone the repository and enter the project directory:
 
 ```bat
-git clone <repository-url>
+git clone https://github.com/SharnavM/PowerToysRun-HowLongToBeat
 cd PowerToysRun-HowLongToBeat
 ```
 
@@ -172,8 +172,7 @@ Install the Python dependencies:
 
 ```bat
 python -m pip install --upgrade pip
-pip install -r src\bridge\requirements.txt
-pip install -r src\bridge\requirements-dev.txt
+pip install -r src\bridge\requirements-lock.txt
 ```
 
 Copy the required PowerToys runtime references into the local dependency directory:
@@ -182,7 +181,7 @@ Copy the required PowerToys runtime references into the local dependency directo
 scripts\sync-powertoys-deps.cmd
 ```
 
-> You may need to modify the path in `sync-powertoys-deps.cmd` depending on where PowerToys is installed on your machine. Replace `D:\Program Files\PowerToys` with the path to your PowerToys installation directory.
+> If PowerToys is installed in a non-standard directory, set `POWERTOYS_INSTALL_DIR` before running the dependency-sync or deployment scripts.
 
 Run the Python tests:
 

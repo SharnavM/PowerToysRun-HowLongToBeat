@@ -3,8 +3,24 @@ setlocal EnableExtensions
 
 cd /d "%~dp0.."
 
+set "POWERTOYS_VERSION_FILE=%CD%\POWERTOYS_VERSION"
+
+if not exist "%POWERTOYS_VERSION_FILE%" (
+    echo ERROR: POWERTOYS_VERSION file not found.
+    exit /b 1
+)
+
+set /p POWERTOYS_VERSION=<"%POWERTOYS_VERSION_FILE%"
+
+if not defined POWERTOYS_VERSION (
+    echo ERROR: POWERTOYS_VERSION is empty.
+    exit /b 1
+)
+
+set "ARCH=x64"
+
 set "PROJECT=tests\plugin\Community.PowerToys.Run.Plugin.HowLongToBeat.UnitTests\Community.PowerToys.Run.Plugin.HowLongToBeat.UnitTests.csproj"
-set "DEPS=.deps\powertoys\0.100.0\x64\Wox.Plugin.dll"
+set "DEPS=.deps\powertoys\%POWERTOYS_VERSION%\%ARCH%\Wox.Plugin.dll"
 set "BRIDGE_EXE=%CD%\artifacts\bridge\hltb-bridge\hltb-bridge.exe"
 
 echo.

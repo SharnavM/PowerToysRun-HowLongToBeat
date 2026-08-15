@@ -1,11 +1,10 @@
 <Project>
   <PropertyGroup>
-    <PowerToysVersion>0.100.0</PowerToysVersion>
-
     <PowerToysArchitecture
       Condition="'$(PowerToysArchitecture)' == ''">x64</PowerToysArchitecture>
 
+    <PluginVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)VERSION').Trim())</PluginVersion>
+    <PowerToysVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)POWERTOYS_VERSION').Trim())</PowerToysVersion>
     <PowerToysDepsDir>$(MSBuildThisFileDirectory).deps\powertoys\$(PowerToysVersion)\$(PowerToysArchitecture)</PowerToysDepsDir>
-    <PluginVersion>0.1.0</PluginVersion>
   </PropertyGroup>
 </Project>
