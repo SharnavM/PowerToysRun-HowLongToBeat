@@ -9,13 +9,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 
-BRIDGE_EXE = (
-    ROOT
-    / "artifacts"
-    / "bridge"
-    / "hltb-bridge"
-    / "hltb-bridge.exe"
-)
+BRIDGE_EXE = ROOT / "artifacts" / "bridge" / "hltb-bridge" / "hltb-bridge.exe"
 
 
 def fail(message: str) -> None:
@@ -52,20 +46,13 @@ def send(
 
         fail(
             "Bridge exited without a response."
-            + (
-                f"\nBridge stderr:\n{stderr}"
-                if stderr
-                else ""
-            )
+            + (f"\nBridge stderr:\n{stderr}" if stderr else "")
         )
 
     try:
         response = json.loads(line)
     except json.JSONDecodeError:
-        fail(
-            "Bridge wrote non-JSON data to stdout:\n"
-            f"{line!r}"
-        )
+        fail(f"Bridge wrote non-JSON data to stdout:\n{line!r}")
 
     return response
 
@@ -75,10 +62,7 @@ def require_success(
     request_id: int,
 ) -> dict[str, Any]:
     if response.get("id") != request_id:
-        fail(
-            f"Expected response ID {request_id}, "
-            f"got {response.get('id')!r}."
-        )
+        fail(f"Expected response ID {request_id}, got {response.get('id')!r}.")
 
     if response.get("ok") is not True:
         fail(
@@ -100,10 +84,7 @@ def require_success(
 
 def main() -> None:
     if not BRIDGE_EXE.is_file():
-        fail(
-            "Packaged bridge not found.\n"
-            "Run scripts\\build-bridge.cmd first."
-        )
+        fail("Packaged bridge not found.\nRun scripts\\build-bridge.cmd first.")
 
     print(f"Testing: {BRIDGE_EXE}")
 
@@ -171,18 +152,13 @@ def main() -> None:
         first = results[0]
 
         if first.get("gameId") != 68151:
-            fail(
-                "Expected Elden Ring to be the "
-                "first live search result."
-            )
+            fail("Expected Elden Ring to be the first live search result.")
 
         if not isinstance(
             first.get("mainSeconds"),
             int,
         ):
-            fail(
-                "Expected raw integer Main Story seconds."
-            )
+            fail("Expected raw integer Main Story seconds.")
 
         print(
             "      result:",
@@ -210,10 +186,7 @@ def main() -> None:
 
         game = lookup.get("game")
 
-        if (
-            not isinstance(game, dict)
-            or game.get("gameId") != 68151
-        ):
+        if not isinstance(game, dict) or game.get("gameId") != 68151:
             fail("ID lookup returned the wrong game.")
 
         print(
@@ -244,9 +217,7 @@ def main() -> None:
             fail("Bridge did not exit after shutdown.")
 
         if exit_code != 0:
-            fail(
-                f"Bridge exited with code {exit_code}."
-            )
+            fail(f"Bridge exited with code {exit_code}.")
 
         print()
         print("Packaged bridge smoke test passed.")
