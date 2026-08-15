@@ -6,5 +6,6 @@
       Condition="'$(PowerToysArchitecture)' == ''">x64</PowerToysArchitecture>
 
     <PowerToysDepsDir>$(MSBuildThisFileDirectory).deps\powertoys\$(PowerToysVersion)\$(PowerToysArchitecture)</PowerToysDepsDir>
+    <PluginVersion>0.1.0</PluginVersion>
   </PropertyGroup>
 </Project>

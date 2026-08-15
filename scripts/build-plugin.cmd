@@ -8,6 +8,7 @@ set "DEPS=.deps\powertoys\0.100.0\x64\Wox.Plugin.dll"
 set "OUTPUT=artifacts\plugin\HowLongToBeat"
 set "BRIDGE_SOURCE=artifacts\bridge\hltb-bridge"
 set "BRIDGE_EXE=%BRIDGE_SOURCE%\hltb-bridge.exe"
+set "CONFIGURATION=%~1"
 
 echo.
 echo ========================================
@@ -36,10 +37,10 @@ if not exist "%BRIDGE_EXE%" (
 )
 
 dotnet build "%PROJECT%" ^
-    -c Debug ^
     -p:Platform=x64 ^
     -p:PowerToysArchitecture=x64 ^
-    --output "%OUTPUT%"
+    --output "%OUTPUT%" ^
+    -c "%CONFIGURATION%"
 
 if errorlevel 1 (
     echo.
@@ -57,6 +58,10 @@ if not exist "%OUTPUT%\plugin.json" (
     echo.
     echo ERROR: plugin.json was not produced.
     exit /b 1
+)
+
+if "%CONFIGURATION%"=="" (
+    set "CONFIGURATION=Debug"
 )
 
 echo.
