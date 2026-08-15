@@ -1,7 +1,6 @@
 <Project>
   <PropertyGroup>
-    <PowerToysArchitecture
-      Condition="'$(PowerToysArchitecture)' == ''">x64</PowerToysArchitecture>
+    <PowerToysArchitecture Condition="'$(PowerToysArchitecture)' == ''">x64</PowerToysArchitecture>
 
     <PluginVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)VERSION').Trim())</PluginVersion>
     <PowerToysVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)POWERTOYS_VERSION').Trim())</PowerToysVersion>

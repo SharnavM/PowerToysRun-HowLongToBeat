@@ -11,9 +11,7 @@ public static class GameResultFormatter
             return "-";
         }
 
-        var totalMinutes = (int)Math.Round(
-            seconds.Value / 60.0,
-            MidpointRounding.AwayFromZero);
+        var totalMinutes = (int)Math.Round(seconds.Value / 60.0, MidpointRounding.AwayFromZero);
 
         totalMinutes = Math.Max(1, totalMinutes);
 
@@ -37,18 +35,14 @@ public static class GameResultFormatter
     {
         ArgumentNullException.ThrowIfNull(game);
 
-        var typeSuffix =
-            game.Type?.ToLowerInvariant() switch
-            {
-                "dlc" => " [DLC]",
-                "mod" => " [Mod]",
-                _ => string.Empty,
-            };
+        var typeSuffix = game.Type?.ToLowerInvariant() switch
+        {
+            "dlc" => " [DLC]",
+            "mod" => " [Mod]",
+            _ => string.Empty,
+        };
 
-        var yearSuffix =
-            game.ReleaseYear is int year
-                ? $" ({year})"
-                : string.Empty;
+        var yearSuffix = game.ReleaseYear is int year ? $" ({year})" : string.Empty;
 
         return $"{game.Name}{typeSuffix}{yearSuffix}";
     }
@@ -61,22 +55,17 @@ public static class GameResultFormatter
 
         if (game.MainSeconds is > 0)
         {
-            parts.Add(
-                $"Main {FormatDuration(game.MainSeconds)}");
+            parts.Add($"Main {FormatDuration(game.MainSeconds)}");
         }
 
         if (game.MainExtraSeconds is > 0)
         {
-            parts.Add(
-                $"Main + Extras " +
-                $"{FormatDuration(game.MainExtraSeconds)}");
+            parts.Add($"Main + Extras " + $"{FormatDuration(game.MainExtraSeconds)}");
         }
 
         if (game.CompletionistSeconds is > 0)
         {
-            parts.Add(
-                $"Completionist " +
-                $"{FormatDuration(game.CompletionistSeconds)}");
+            parts.Add($"Completionist " + $"{FormatDuration(game.CompletionistSeconds)}");
         }
 
         if (parts.Count == 0)
@@ -87,41 +76,27 @@ public static class GameResultFormatter
         return string.Join(" • ", parts);
     }
 
-    public static string BuildClipboardText(
-        BridgeGame game)
+    public static string BuildClipboardText(BridgeGame game)
     {
-        ArgumentNullException.ThrowIfNull(
-            game);
+        ArgumentNullException.ThrowIfNull(game);
 
-        var lines =
-            new List<string>
-            {
-                BuildTitle(game),
-            };
+        var lines = new List<string> { BuildTitle(game) };
 
         if (game.MainSeconds is > 0)
         {
-            lines.Add(
-                $"Main: " +
-                $"{FormatDuration(game.MainSeconds)}");
+            lines.Add($"Main: " + $"{FormatDuration(game.MainSeconds)}");
         }
 
         if (game.MainExtraSeconds is > 0)
         {
-            lines.Add(
-                $"Main + Extras: " +
-                $"{FormatDuration(game.MainExtraSeconds)}");
+            lines.Add($"Main + Extras: " + $"{FormatDuration(game.MainExtraSeconds)}");
         }
 
         if (game.CompletionistSeconds is > 0)
         {
-            lines.Add(
-                $"Completionist: " +
-                $"{FormatDuration(game.CompletionistSeconds)}");
+            lines.Add($"Completionist: " + $"{FormatDuration(game.CompletionistSeconds)}");
         }
 
-        return string.Join(
-            Environment.NewLine,
-            lines);
+        return string.Join(Environment.NewLine, lines);
     }
 }

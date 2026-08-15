@@ -1,9 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-
-using PluginMain =
-    Community.PowerToys.Run.Plugin.HowLongToBeat.Main;
+using PluginMain = Community.PowerToys.Run.Plugin.HowLongToBeat.Main;
 
 namespace Community.PowerToys.Run.Plugin.HowLongToBeat.UnitTests;
 
@@ -12,16 +10,11 @@ public sealed class PluginManifestTests
 {
     private static JsonElement LoadManifest()
     {
-        var path = Path.Combine(
-            AppContext.BaseDirectory,
-            "plugin.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "plugin.json");
 
-        Assert.IsTrue(
-            File.Exists(path),
-            $"plugin.json was not copied to test output: {path}");
+        Assert.IsTrue(File.Exists(path), $"plugin.json was not copied to test output: {path}");
 
-        using var document = JsonDocument.Parse(
-            File.ReadAllText(path));
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
 
         return document.RootElement.Clone();
     }
@@ -31,13 +24,9 @@ public sealed class PluginManifestTests
     {
         var manifest = LoadManifest();
 
-        var id = manifest
-            .GetProperty("ID")
-            .GetString();
+        var id = manifest.GetProperty("ID").GetString();
 
-        Assert.AreEqual(
-            PluginMain.PluginID,
-            id);
+        Assert.AreEqual(PluginMain.PluginID, id);
     }
 
     [TestMethod]
@@ -45,11 +34,7 @@ public sealed class PluginManifestTests
     {
         var manifest = LoadManifest();
 
-        Assert.AreEqual(
-            "hltb",
-            manifest
-                .GetProperty("ActionKeyword")
-                .GetString());
+        Assert.AreEqual("hltb", manifest.GetProperty("ActionKeyword").GetString());
     }
 
     [TestMethod]
@@ -57,11 +42,7 @@ public sealed class PluginManifestTests
     {
         var manifest = LoadManifest();
 
-        Assert.AreEqual(
-            "HowLongToBeat",
-            manifest
-                .GetProperty("Name")
-                .GetString());
+        Assert.AreEqual("HowLongToBeat", manifest.GetProperty("Name").GetString());
     }
 
     [TestMethod]
@@ -71,9 +52,8 @@ public sealed class PluginManifestTests
 
         Assert.AreEqual(
             "Community.PowerToys.Run.Plugin.HowLongToBeat.dll",
-            manifest
-                .GetProperty("ExecuteFileName")
-                .GetString());
+            manifest.GetProperty("ExecuteFileName").GetString()
+        );
     }
 
     [TestMethod]
@@ -81,10 +61,7 @@ public sealed class PluginManifestTests
     {
         var manifest = LoadManifest();
 
-        Assert.IsFalse(
-            manifest
-                .GetProperty("IsGlobal")
-                .GetBoolean());
+        Assert.IsFalse(manifest.GetProperty("IsGlobal").GetBoolean());
     }
 
     [TestMethod]
@@ -92,9 +69,6 @@ public sealed class PluginManifestTests
     {
         var manifest = LoadManifest();
 
-        Assert.IsFalse(
-            manifest
-                .GetProperty("DynamicLoading")
-                .GetBoolean());
+        Assert.IsFalse(manifest.GetProperty("DynamicLoading").GetBoolean());
     }
 }

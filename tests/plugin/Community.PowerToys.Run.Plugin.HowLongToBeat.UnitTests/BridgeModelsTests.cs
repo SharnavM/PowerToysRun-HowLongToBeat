@@ -10,8 +10,7 @@ public sealed class BridgeModelsTests
     [TestMethod]
     public void SearchResponsePreservesRawSeconds()
     {
-        const string json =
-            """
+        const string json = """
             {
               "results": [
                 {
@@ -37,9 +36,7 @@ public sealed class BridgeModelsTests
             }
             """;
 
-        var result =
-            JsonSerializer.Deserialize<BridgeSearchResult>(
-                json);
+        var result = JsonSerializer.Deserialize<BridgeSearchResult>(json);
 
         Assert.IsNotNull(result);
         Assert.AreEqual(1, result.Count);
@@ -47,24 +44,17 @@ public sealed class BridgeModelsTests
 
         var game = result.Results[0];
 
-        Assert.AreEqual(
-            68151,
-            game.GameId);
+        Assert.AreEqual(68151, game.GameId);
 
-        Assert.AreEqual(
-            216306,
-            game.MainSeconds);
+        Assert.AreEqual(216306, game.MainSeconds);
 
-        Assert.AreEqual(
-            489602,
-            game.CompletionistSeconds);
+        Assert.AreEqual(489602, game.CompletionistSeconds);
     }
 
     [TestMethod]
     public void MissingTimingDataRemainsNull()
     {
-        const string json =
-            """
+        const string json = """
             {
               "results": [
                 {
@@ -87,18 +77,14 @@ public sealed class BridgeModelsTests
             }
             """;
 
-        var result =
-            JsonSerializer.Deserialize<BridgeSearchResult>(
-                json);
+        var result = JsonSerializer.Deserialize<BridgeSearchResult>(json);
 
         Assert.IsNotNull(result);
 
         var game = result.Results[0];
 
-        Assert.IsNull(
-            game.ReleaseYear);
+        Assert.IsNull(game.ReleaseYear);
 
-        Assert.IsNull(
-            game.CompletionistSeconds);
+        Assert.IsNull(game.CompletionistSeconds);
     }
 }

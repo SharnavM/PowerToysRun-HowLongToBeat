@@ -1,5 +1,5 @@
-using Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
 using System.IO;
+using Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Community.PowerToys.Run.Plugin.HowLongToBeat.UnitTests;
@@ -10,34 +10,19 @@ public sealed class BridgeClientIntegrationTests
     [TestMethod]
     public async Task PackagedBridgeRespondsToPing()
     {
-        var executablePath =
-            Environment.GetEnvironmentVariable(
-                "HLTB_BRIDGE_EXE");
+        var executablePath = Environment.GetEnvironmentVariable("HLTB_BRIDGE_EXE");
 
-        Assert.IsFalse(
-            string.IsNullOrWhiteSpace(
-                executablePath),
-            "HLTB_BRIDGE_EXE is not set.");
+        Assert.IsFalse(string.IsNullOrWhiteSpace(executablePath), "HLTB_BRIDGE_EXE is not set.");
 
-        Assert.IsTrue(
-            File.Exists(executablePath),
-            $"Packaged bridge not found: {executablePath}");
+        Assert.IsTrue(File.Exists(executablePath), $"Packaged bridge not found: {executablePath}");
 
-        using var client =
-            new BridgeClient(
-                executablePath,
-                TimeSpan.FromSeconds(5));
+        using var client = new BridgeClient(executablePath, TimeSpan.FromSeconds(5));
 
-        var ping =
-            await client.PingAsync();
+        var ping = await client.PingAsync();
 
-        Assert.AreEqual(
-            1,
-            ping.ProtocolVersion);
+        Assert.AreEqual(1, ping.ProtocolVersion);
 
-        Assert.AreEqual(
-            TestProjectInfo.ProjectVersion,
-            ping.BridgeVersion);
+        Assert.AreEqual(TestProjectInfo.ProjectVersion, ping.BridgeVersion);
 
         await client.ShutdownAsync();
     }
@@ -45,14 +30,9 @@ public sealed class BridgeClientIntegrationTests
     [TestMethod]
     public void CreateDefaultUsesProvidedPluginDirectory()
     {
-        var pluginDirectory =
-            Path.Combine(
-                Path.GetTempPath(),
-                "hltb-plugin-test");
+        var pluginDirectory = Path.Combine(Path.GetTempPath(), "hltb-plugin-test");
 
-        using var client =
-            BridgeClient.CreateDefault(
-                pluginDirectory);
+        using var client = BridgeClient.CreateDefault(pluginDirectory);
 
         // Construction must succeed without requiring
         // AppContext.BaseDirectory to contain the bridge.

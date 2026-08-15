@@ -12,33 +12,24 @@ public static class TitleNormalizer
             return string.Empty;
         }
 
-        var decomposed =
-            value.Normalize(
-                NormalizationForm.FormD);
+        var decomposed = value.Normalize(NormalizationForm.FormD);
 
-        var builder =
-            new StringBuilder(
-                decomposed.Length);
+        var builder = new StringBuilder(decomposed.Length);
 
         var previousWasSpace = true;
 
         foreach (var character in decomposed)
         {
-            var category =
-                CharUnicodeInfo.GetUnicodeCategory(
-                    character);
+            var category = CharUnicodeInfo.GetUnicodeCategory(character);
 
-            if (category ==
-                UnicodeCategory.NonSpacingMark)
+            if (category == UnicodeCategory.NonSpacingMark)
             {
                 continue;
             }
 
             if (char.IsLetterOrDigit(character))
             {
-                builder.Append(
-                    char.ToLowerInvariant(
-                        character));
+                builder.Append(char.ToLowerInvariant(character));
 
                 previousWasSpace = false;
                 continue;
@@ -51,24 +42,18 @@ public static class TitleNormalizer
             }
         }
 
-        return builder
-            .ToString()
-            .Trim();
+        return builder.ToString().Trim();
     }
 
-    public static string[] Tokens(
-        string? value)
+    public static string[] Tokens(string? value)
     {
-        var normalized =
-            Normalize(value);
+        var normalized = Normalize(value);
 
         if (normalized.Length == 0)
         {
             return [];
         }
 
-        return normalized.Split(
-            ' ',
-            StringSplitOptions.RemoveEmptyEntries);
+        return normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
     }
 }

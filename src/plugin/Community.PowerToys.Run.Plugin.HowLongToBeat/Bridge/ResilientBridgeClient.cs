@@ -1,95 +1,70 @@
 namespace Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
 
-public sealed class ResilientBridgeClient :
-    IBridgeClient
+public sealed class ResilientBridgeClient : IBridgeClient
 {
     private readonly IBridgeClient _inner;
 
-    public ResilientBridgeClient(
-        IBridgeClient inner)
+    public ResilientBridgeClient(IBridgeClient inner)
     {
-        _inner =
-            inner
-            ?? throw new ArgumentNullException(
-                nameof(inner));
+        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     }
 
-    public Task<BridgePingResult> PingAsync(
-        CancellationToken cancellationToken = default)
+    public Task<BridgePingResult> PingAsync(CancellationToken cancellationToken = default)
     {
-        return ExecuteWithRecoveryAsync(
-            token =>
-                _inner.PingAsync(token),
-            cancellationToken);
+        return ExecuteWithRecoveryAsync(token => _inner.PingAsync(token), cancellationToken);
     }
 
     public Task<BridgeSearchResult> SearchAsync(
         string query,
-        BridgeSearchMode mode =
-            BridgeSearchMode.All,
-        CancellationToken cancellationToken = default)
+        BridgeSearchMode mode = BridgeSearchMode.All,
+        CancellationToken cancellationToken = default
+    )
     {
         return ExecuteWithRecoveryAsync(
-            token =>
-                _inner.SearchAsync(
-                    query,
-                    mode,
-                    token),
-            cancellationToken);
+            token => _inner.SearchAsync(query, mode, token),
+            cancellationToken
+        );
     }
 
-    public Task<BridgeGame?> GetByIdAsync(
-        int gameId,
-        CancellationToken cancellationToken = default)
+    public Task<BridgeGame?> GetByIdAsync(int gameId, CancellationToken cancellationToken = default)
     {
         return ExecuteWithRecoveryAsync(
-            token =>
-                _inner.GetByIdAsync(
-                    gameId,
-                    token),
-            cancellationToken);
+            token => _inner.GetByIdAsync(gameId, token),
+            cancellationToken
+        );
     }
 
-    public Task ShutdownAsync(
-        CancellationToken cancellationToken = default)
+    public Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
-        return _inner.ShutdownAsync(
-            cancellationToken);
+        return _inner.ShutdownAsync(cancellationToken);
     }
 
     private async Task<T> ExecuteWithRecoveryAsync<T>(
         Func<CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            return await operation(
-                cancellationToken);
+            return await operation(cancellationToken);
         }
         catch (BridgeException exception)
-            when (
-                IsRecoverable(exception)
-                && !cancellationToken
-                    .IsCancellationRequested)
+            when (IsRecoverable(exception) && !cancellationToken.IsCancellationRequested)
         {
             await ResetBridgeAsync();
 
             // Exactly one retry.
-            return await operation(
-                cancellationToken);
+            return await operation(cancellationToken);
         }
     }
 
     private async Task ResetBridgeAsync()
     {
-        using var timeout =
-            new CancellationTokenSource(
-                TimeSpan.FromMilliseconds(750));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(750));
 
         try
         {
-            await _inner.ShutdownAsync(
-                timeout.Token);
+            await _inner.ShutdownAsync(timeout.Token);
         }
         catch
         {
@@ -99,8 +74,7 @@ public sealed class ResilientBridgeClient :
         }
     }
 
-    private static bool IsRecoverable(
-        BridgeException exception)
+    private static bool IsRecoverable(BridgeException exception)
     {
         return exception.Code switch
         {

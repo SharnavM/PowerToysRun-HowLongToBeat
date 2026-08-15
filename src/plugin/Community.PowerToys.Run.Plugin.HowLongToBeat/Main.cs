@@ -1,186 +1,138 @@
 using System.Diagnostics;
-using System.Windows.Controls;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Bridge;
+using Community.PowerToys.Run.Plugin.HowLongToBeat.Caching;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Formatting;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Parsing;
 using Community.PowerToys.Run.Plugin.HowLongToBeat.Ranking;
-using Community.PowerToys.Run.Plugin.HowLongToBeat.Caching;
 using Microsoft.PowerToys.Settings.UI.Library;
-
 using Wox.Plugin;
 
 namespace Community.PowerToys.Run.Plugin.HowLongToBeat;
 
-public sealed class Main :
-    IPlugin,
-    IDelayedExecutionPlugin,
-    ISettingProvider,
-    IContextMenu,
-    IDisposable
+public sealed class Main
+    : IPlugin,
+        IDelayedExecutionPlugin,
+        ISettingProvider,
+        IContextMenu,
+        IDisposable
 {
     private const int MinimumSearchLength = 2;
     private const int MaximumResults = 8;
-    private const string BridgeIdleTimeoutOptionKey =
-        "BridgeIdleTimeoutMinutes";
-    private const int
-        DefaultBridgeIdleTimeoutMinutes = 10;
-    private const int
-        MaximumBridgeIdleTimeoutMinutes = 120;
-    private const string
-        SearchDelayOptionKey = "SearchDelayMilliseconds";
-    private const int
-        DefaultSearchDelayMilliseconds = 400;
-    private const int
-        MaximumSearchDelayMilliseconds = 2000;
+    private const string BridgeIdleTimeoutOptionKey = "BridgeIdleTimeoutMinutes";
+    private const int DefaultBridgeIdleTimeoutMinutes = 10;
+    private const int MaximumBridgeIdleTimeoutMinutes = 120;
+    private const string SearchDelayOptionKey = "SearchDelayMilliseconds";
+    private const int DefaultSearchDelayMilliseconds = 400;
+    private const int MaximumSearchDelayMilliseconds = 2000;
 
     private IBridgeClient? _bridge;
 
     private readonly object _searchLock = new();
-    private readonly SearchCache _searchCache =
-        new();
+    private readonly SearchCache _searchCache = new();
 
-    private CancellationTokenSource?
-        _activeSearchCancellation;
-    private IdleShutdownBridgeClient?
-        _idleBridge;
+    private CancellationTokenSource? _activeSearchCancellation;
+    private IdleShutdownBridgeClient? _idleBridge;
     private IPublicAPI? _api;
 
     private long _queryGeneration;
     private bool _disposed;
-    private int _bridgeIdleTimeoutMinutes =
-        DefaultBridgeIdleTimeoutMinutes;
-    private int _searchDelayMilliseconds =
-        DefaultSearchDelayMilliseconds;
+    private int _bridgeIdleTimeoutMinutes = DefaultBridgeIdleTimeoutMinutes;
+    private int _searchDelayMilliseconds = DefaultSearchDelayMilliseconds;
 
-        public Main()
+    public Main() { }
+
+    public Main(IBridgeClient bridge, int searchDelayMilliseconds = 0)
     {
+        _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
+
+        _idleBridge = bridge as IdleShutdownBridgeClient;
+
+        _searchDelayMilliseconds = Math.Clamp(
+            searchDelayMilliseconds,
+            0,
+            MaximumSearchDelayMilliseconds
+        );
     }
 
-    public Main(
-        IBridgeClient bridge,
-        int searchDelayMilliseconds = 0)
-    {
-        _bridge =
-            bridge
-            ?? throw new ArgumentNullException(
-                nameof(bridge));
+    public static string PluginID => "0ADE2E6A74FF4E1AADBAABE8F06FFCD0";
 
-        _idleBridge =
-            bridge as IdleShutdownBridgeClient;
+    public string Name => "HowLongToBeat";
 
-        _searchDelayMilliseconds =
-            Math.Clamp(
-                searchDelayMilliseconds,
-                0,
-                MaximumSearchDelayMilliseconds);
-    }
+    public string Description => "Search game completion times on HowLongToBeat.";
 
-    public static string PluginID =>
-        "0ADE2E6A74FF4E1AADBAABE8F06FFCD0";
+    public IEnumerable<PluginAdditionalOption> AdditionalOptions =>
+        [
+            new PluginAdditionalOption
+            {
+                Key = BridgeIdleTimeoutOptionKey,
 
-    public string Name =>
-        "HowLongToBeat";
+                DisplayLabel = "Bridge idle shutdown (minutes)",
 
-    public string Description =>
-        "Search game completion times on HowLongToBeat.";
+                DisplayDescription =
+                    "Automatically stop the HowLongToBeat "
+                    + "helper process after this many minutes "
+                    + "without bridge activity. Set 0 to keep "
+                    + "it running until PowerToys exits.",
 
-    public IEnumerable<PluginAdditionalOption>
-        AdditionalOptions =>
-    [
-        new PluginAdditionalOption
-        {
-            Key =
-                BridgeIdleTimeoutOptionKey,
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Numberbox,
 
-            DisplayLabel =
-                "Bridge idle shutdown (minutes)",
+                NumberValue = DefaultBridgeIdleTimeoutMinutes,
 
-            DisplayDescription =
-                "Automatically stop the HowLongToBeat "
-                + "helper process after this many minutes "
-                + "without bridge activity. Set 0 to keep "
-                + "it running until PowerToys exits.",
+                NumberBoxMin = 0,
 
-            PluginOptionType =
-                PluginAdditionalOption
-                    .AdditionalOptionType
-                    .Numberbox,
+                NumberBoxMax = MaximumBridgeIdleTimeoutMinutes,
 
-            NumberValue =
-                DefaultBridgeIdleTimeoutMinutes,
+                NumberBoxSmallChange = 1,
 
-            NumberBoxMin = 0,
+                NumberBoxLargeChange = 10,
+            },
+            new PluginAdditionalOption
+            {
+                Key = SearchDelayOptionKey,
 
-            NumberBoxMax =
-                MaximumBridgeIdleTimeoutMinutes,
+                DisplayLabel = "Search delay while typing (milliseconds)",
 
-            NumberBoxSmallChange = 1,
+                DisplayDescription =
+                    "Wait this long after the latest keystroke "
+                    + "before contacting HowLongToBeat. "
+                    + "Higher values reduce unnecessary requests. "
+                    + "Set 0 to disable the additional delay.",
 
-            NumberBoxLargeChange = 10,
-        },
-        new PluginAdditionalOption
-        {
-            Key =
-                SearchDelayOptionKey,
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Numberbox,
 
-            DisplayLabel =
-                "Search delay while typing (milliseconds)",
+                NumberValue = DefaultSearchDelayMilliseconds,
 
-            DisplayDescription =
-                "Wait this long after the latest keystroke "
-                + "before contacting HowLongToBeat. "
-                + "Higher values reduce unnecessary requests. "
-                + "Set 0 to disable the additional delay.",
+                NumberBoxMin = 0,
+                NumberBoxMax = MaximumSearchDelayMilliseconds,
 
-            PluginOptionType =
-                PluginAdditionalOption
-                    .AdditionalOptionType
-                    .Numberbox,
-
-            NumberValue =
-                DefaultSearchDelayMilliseconds,
-
-            NumberBoxMin = 0,
-            NumberBoxMax =
-                MaximumSearchDelayMilliseconds,
-
-            NumberBoxSmallChange = 50,
-            NumberBoxLargeChange = 100,
-        },
-    ];
+                NumberBoxSmallChange = 50,
+                NumberBoxLargeChange = 100,
+            },
+        ];
 
     public void Init(PluginInitContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var pluginDirectory =
-            context.CurrentPluginMetadata
-                ?.PluginDirectory;
+        var pluginDirectory = context.CurrentPluginMetadata?.PluginDirectory;
 
-        if (string.IsNullOrWhiteSpace(
-                pluginDirectory))
+        if (string.IsNullOrWhiteSpace(pluginDirectory))
         {
-            throw new InvalidOperationException(
-                "PowerToys did not provide the plugin directory.");
+            throw new InvalidOperationException("PowerToys did not provide the plugin directory.");
         }
 
-        var rawBridge =
-            BridgeClient.CreateDefault(
-                pluginDirectory);
+        var rawBridge = BridgeClient.CreateDefault(pluginDirectory);
 
-        _idleBridge =
-            new IdleShutdownBridgeClient(
-                rawBridge,
-                ToIdleTimeout(
-                    _bridgeIdleTimeoutMinutes));
+        _idleBridge = new IdleShutdownBridgeClient(
+            rawBridge,
+            ToIdleTimeout(_bridgeIdleTimeoutMinutes)
+        );
 
-        _bridge =
-            new ResilientBridgeClient(
-                _idleBridge);
-        
+        _bridge = new ResilientBridgeClient(_idleBridge);
+
         _api = context.API;
 
         // Creating BridgeClient does not start Python.
@@ -191,23 +143,16 @@ public sealed class Main :
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var rawQuery =
-            query.Search.Trim();
+        var rawQuery = query.Search.Trim();
 
         MarkQueryChanged();
 
-        var parsed =
-            HltbQueryParser.Parse(
-                rawQuery);
+        var parsed = HltbQueryParser.Parse(rawQuery);
 
-        return CreateImmediateResults(
-            rawQuery,
-            parsed);
+        return CreateImmediateResults(rawQuery, parsed);
     }
 
-    public List<Result> Query(
-        Query query,
-        bool delayedExecution)
+    public List<Result> Query(Query query, bool delayedExecution)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -219,45 +164,31 @@ public sealed class Main :
         return ExecuteDelayedQuery(query);
     }
 
-    private List<Result> ExecuteDelayedQuery(
-    Query query)
-{
-        var rawQuery =
-            query.Search.Trim();
+    private List<Result> ExecuteDelayedQuery(Query query)
+    {
+        var rawQuery = query.Search.Trim();
 
-        var parsed =
-            HltbQueryParser.Parse(
-                rawQuery);
+        var parsed = HltbQueryParser.Parse(rawQuery);
 
         if (!parsed.IsValid)
         {
-            return
-            [
-                CreateInfoResult(
-                    parsed.ErrorTitle!,
-                    parsed.ErrorMessage!,
-                    rawQuery),
-            ];
+            return [CreateInfoResult(parsed.ErrorTitle!, parsed.ErrorMessage!, rawQuery)];
         }
 
         if (
             !parsed.IsIdLookup
             && (
-                string.IsNullOrWhiteSpace(
-                    parsed.SearchText)
-                || parsed.SearchText.Length <
-                    MinimumSearchLength
-            ))
+                string.IsNullOrWhiteSpace(parsed.SearchText)
+                || parsed.SearchText.Length < MinimumSearchLength
+            )
+        )
         {
             return [];
         }
 
-        var generation =
-            Volatile.Read(
-                ref _queryGeneration);
+        var generation = Volatile.Read(ref _queryGeneration);
 
-        var cancellation =
-            BeginSearch();
+        var cancellation = BeginSearch();
 
         try
         {
@@ -265,81 +196,56 @@ public sealed class Main :
                 _bridge
                 ?? throw new BridgeException(
                     "bridge_not_initialized",
-                    "HLTB bridge was not initialized.");
+                    "HLTB bridge was not initialized."
+                );
 
             if (parsed.IsIdLookup)
             {
-                return ExecuteIdLookup(
-                    bridge,
-                    parsed,
-                    rawQuery,
-                    generation,
-                    cancellation);
+                return ExecuteIdLookup(bridge, parsed, rawQuery, generation, cancellation);
             }
 
             BridgeSearchResult response;
 
-            if (
-                !_searchCache.TryGet(
-                    parsed.SearchText!,
-                    parsed.SearchMode,
-                    out response))
+            if (!_searchCache.TryGet(parsed.SearchText!, parsed.SearchMode, out response))
             {
-                WaitForSearchDelay(
-                    cancellation.Token);
+                WaitForSearchDelay(cancellation.Token);
 
                 if (
                     cancellation.IsCancellationRequested
-                    || generation !=
-                        Volatile.Read(
-                            ref _queryGeneration))
+                    || generation != Volatile.Read(ref _queryGeneration)
+                )
                 {
                     return [];
                 }
 
                 // Another request may have filled the cache
                 // while we were waiting.
-                if (
-                    !_searchCache.TryGet(
-                        parsed.SearchText!,
-                        parsed.SearchMode,
-                        out response))
+                if (!_searchCache.TryGet(parsed.SearchText!, parsed.SearchMode, out response))
                 {
-                    response =
-                        bridge
-                            .SearchAsync(
-                                parsed.SearchText!,
-                                parsed.SearchMode,
-                                cancellation.Token)
-                            .GetAwaiter()
-                            .GetResult();
+                    response = bridge
+                        .SearchAsync(parsed.SearchText!, parsed.SearchMode, cancellation.Token)
+                        .GetAwaiter()
+                        .GetResult();
 
                     if (
                         !cancellation.IsCancellationRequested
-                        && generation ==
-                            Volatile.Read(
-                                ref _queryGeneration))
+                        && generation == Volatile.Read(ref _queryGeneration)
+                    )
                     {
-                        _searchCache.Set(
-                            parsed.SearchText!,
-                            parsed.SearchMode,
-                            response);
+                        _searchCache.Set(parsed.SearchText!, parsed.SearchMode, response);
                     }
                 }
             }
 
             if (
                 cancellation.IsCancellationRequested
-                || generation !=
-                    Volatile.Read(
-                        ref _queryGeneration))
+                || generation != Volatile.Read(ref _queryGeneration)
+            )
             {
                 return [];
             }
 
-            var games =
-                response.Results
-                ?? [];
+            var games = response.Results ?? [];
 
             if (games.Length == 0)
             {
@@ -348,22 +254,16 @@ public sealed class Main :
                     CreateInfoResult(
                         "No HowLongToBeat results",
                         $"No matches found for \"{parsed.SearchText}\".",
-                        rawQuery),
+                        rawQuery
+                    ),
                 ];
             }
 
-            var ranked =
-                GameRanker.Rank(
-                    games,
-                    parsed);
+            var ranked = GameRanker.Rank(games, parsed);
 
             return ranked
                 .Take(MaximumResults)
-                .Select(
-                    (game, index) =>
-                        CreateGameResult(
-                            game,
-                            index))
+                .Select((game, index) => CreateGameResult(game, index))
                 .ToList();
         }
         catch (OperationCanceledException)
@@ -374,28 +274,20 @@ public sealed class Main :
         {
             if (
                 cancellation.IsCancellationRequested
-                || generation !=
-                    Volatile.Read(
-                        ref _queryGeneration))
+                || generation != Volatile.Read(ref _queryGeneration)
+            )
             {
                 return [];
             }
 
-            return
-            [
-                CreateBridgeErrorResult(
-                    exception,
-                    rawQuery,
-                    parsed),
-            ];
+            return [CreateBridgeErrorResult(exception, rawQuery, parsed)];
         }
         catch (Exception)
         {
             if (
                 cancellation.IsCancellationRequested
-                || generation !=
-                    Volatile.Read(
-                        ref _queryGeneration))
+                || generation != Volatile.Read(ref _queryGeneration)
+            )
             {
                 return [];
             }
@@ -405,7 +297,8 @@ public sealed class Main :
                 CreateInfoResult(
                     "HowLongToBeat search failed",
                     "An unexpected search error occurred.",
-                    rawQuery),
+                    rawQuery
+                ),
             ];
         }
         finally
@@ -414,9 +307,7 @@ public sealed class Main :
         }
     }
 
-    private List<Result> CreateImmediateResults(
-    string rawQuery,
-    ParsedHltbQuery parsed)
+    private List<Result> CreateImmediateResults(string rawQuery, ParsedHltbQuery parsed)
     {
         if (string.IsNullOrWhiteSpace(rawQuery))
         {
@@ -425,19 +316,14 @@ public sealed class Main :
                 CreateInfoResult(
                     "Search HowLongToBeat",
                     "Type a game name after hltb.",
-                    string.Empty),
+                    string.Empty
+                ),
             ];
         }
 
         if (!parsed.IsValid)
         {
-            return
-            [
-                CreateInfoResult(
-                    parsed.ErrorTitle!,
-                    parsed.ErrorMessage!,
-                    rawQuery),
-            ];
+            return [CreateInfoResult(parsed.ErrorTitle!, parsed.ErrorMessage!, rawQuery)];
         }
 
         if (parsed.IsIdLookup)
@@ -447,38 +333,27 @@ public sealed class Main :
                 CreateInfoResult(
                     "Looking up HowLongToBeat game…",
                     $"Game ID {parsed.GameId}",
-                    rawQuery),
+                    rawQuery
+                ),
             ];
         }
 
-        var search =
-            parsed.SearchText!;
+        var search = parsed.SearchText!;
 
         if (search.Length < MinimumSearchLength)
         {
-            return
-            [
-                CreateInfoResult(
-                    "Keep typing",
-                    "Enter at least 2 characters.",
-                    rawQuery),
-            ];
+            return [CreateInfoResult("Keep typing", "Enter at least 2 characters.", rawQuery)];
         }
 
         return
         [
-            CreateInfoResult(
-                "Searching HowLongToBeat…",
-                BuildSearchDescription(parsed),
-                rawQuery),
+            CreateInfoResult("Searching HowLongToBeat…", BuildSearchDescription(parsed), rawQuery),
         ];
     }
 
-    public List<ContextMenuResult> LoadContextMenus(
-        Result selectedResult)
+    public List<ContextMenuResult> LoadContextMenus(Result selectedResult)
     {
-        if (selectedResult.ContextData
-            is not BridgeGame game)
+        if (selectedResult.ContextData is not BridgeGame game)
         {
             return [];
         }
@@ -489,93 +364,65 @@ public sealed class Main :
             {
                 PluginName = Name,
 
-                Title =
-                    "Open on HowLongToBeat",
+                Title = "Open on HowLongToBeat",
 
                 Glyph = "\xE8A7",
 
-                FontFamily =
-                    "Segoe Fluent Icons,Segoe MDL2 Assets",
+                FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
 
-                AcceleratorKey =
-                    Key.Enter,
+                AcceleratorKey = Key.Enter,
 
-                AcceleratorModifiers =
-                    ModifierKeys.Control,
+                AcceleratorModifiers = ModifierKeys.Control,
 
-                Action =
-                    _ => OpenUrl(game.Url),
+                Action = _ => OpenUrl(game.Url),
             },
-
             new ContextMenuResult
             {
                 PluginName = Name,
 
-                Title =
-                    "Copy completion times",
+                Title = "Copy completion times",
 
                 Glyph = "\xE917",
 
-                FontFamily =
-                    "Segoe Fluent Icons,Segoe MDL2 Assets",
+                FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
 
-                AcceleratorKey =
-                    Key.C,
+                AcceleratorKey = Key.C,
 
-                AcceleratorModifiers =
-                    ModifierKeys.Control,
+                AcceleratorModifiers = ModifierKeys.Control,
 
-                Action =
-                    _ => CopyText(
-                        GameResultFormatter
-                            .BuildClipboardText(game)),
+                Action = _ => CopyText(GameResultFormatter.BuildClipboardText(game)),
             },
-
             new ContextMenuResult
             {
                 PluginName = Name,
 
-                Title =
-                    "Copy HowLongToBeat link",
+                Title = "Copy HowLongToBeat link",
 
                 Glyph = "\xE71B",
 
-                FontFamily =
-                    "Segoe Fluent Icons,Segoe MDL2 Assets",
+                FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
 
-                AcceleratorKey =
-                    Key.C,
+                AcceleratorKey = Key.C,
 
-                AcceleratorModifiers =
-                    ModifierKeys.Control |
-                    ModifierKeys.Shift,
+                AcceleratorModifiers = ModifierKeys.Control | ModifierKeys.Shift,
 
-                Action =
-                    _ => CopyText(
-                        game.Url),
+                Action = _ => CopyText(game.Url),
             },
         ];
     }
 
-    private static string BuildSearchDescription(
-    ParsedHltbQuery parsed)
+    private static string BuildSearchDescription(ParsedHltbQuery parsed)
     {
-        var parts =
-            new List<string>
-            {
-                $"Looking up \"{parsed.SearchText}\"",
-            };
+        var parts = new List<string> { $"Looking up \"{parsed.SearchText}\"" };
 
         if (parsed.Year.HasValue)
         {
-            parts.Add(
-                $"Year {parsed.Year}");
+            parts.Add($"Year {parsed.Year}");
         }
 
         if (parsed.Platform is not null)
         {
-            parts.Add(
-                parsed.Platform);
+            parts.Add(parsed.Platform);
         }
 
         switch (parsed.SearchMode)
@@ -589,119 +436,88 @@ public sealed class Main :
                 break;
         }
 
-        return string.Join(
-            " • ",
-            parts);
+        return string.Join(" • ", parts);
     }
 
-    private static Result CreateGameResult(
-        BridgeGame game,
-        int index)
+    private static Result CreateGameResult(BridgeGame game, int index)
     {
         return new Result
         {
-            Title =
-                GameResultFormatter.BuildTitle(game),
+            Title = GameResultFormatter.BuildTitle(game),
 
-            SubTitle =
-                GameResultFormatter.BuildSubtitle(game),
+            SubTitle = GameResultFormatter.BuildSubtitle(game),
 
-            QueryTextDisplay =
-                game.Name,
+            QueryTextDisplay = game.Name,
 
-            IcoPath =
-                "Images\\howlongtobeat.dark.png",
+            IcoPath = "Images\\howlongtobeat.dark.png",
 
-            Score =
-                1000 - index,
+            Score = 1000 - index,
 
-            DisableUsageBasedScoring =
-                true,
+            DisableUsageBasedScoring = true,
 
-            ContextData =
-                game,
+            ContextData = game,
 
-            Action =
-                _ => OpenUrl(game.Url),
+            Action = _ => OpenUrl(game.Url),
         };
     }
 
-    private static Result CreateInfoResult(
-        string title,
-        string subtitle,
-        string queryText)
+    private static Result CreateInfoResult(string title, string subtitle, string queryText)
     {
         return new Result
         {
             Title = title,
             SubTitle = subtitle,
 
-            QueryTextDisplay =
-                queryText,
+            QueryTextDisplay = queryText,
 
-            IcoPath =
-                "Images\\howlongtobeat.dark.png",
+            IcoPath = "Images\\howlongtobeat.dark.png",
 
             Score = 100,
 
-            DisableUsageBasedScoring =
-                true,
+            DisableUsageBasedScoring = true,
 
-            Action =
-                _ => false,
+            Action = _ => false,
         };
     }
 
     private static Result CreateBridgeErrorResult(
         BridgeException exception,
         string rawQuery,
-        ParsedHltbQuery parsed)
+        ParsedHltbQuery parsed
+    )
     {
-        var target =
-            BuildBrowserFallbackUrl(
-                parsed);
+        var target = BuildBrowserFallbackUrl(parsed);
 
-        var title =
-            exception.Code switch
-            {
-                "timeout" =>
-                    "HowLongToBeat timed out - search in browser",
+        var title = exception.Code switch
+        {
+            "timeout" => "HowLongToBeat timed out - search in browser",
 
-                "upstream_error" =>
-                    "HowLongToBeat unavailable - search in browser",
+            "upstream_error" => "HowLongToBeat unavailable - search in browser",
 
-                "bridge_not_found" =>
-                    "HLTB helper missing - search in browser",
+            "bridge_not_found" => "HLTB helper missing - search in browser",
 
-                _ =>
-                    "HLTB search failed - search in browser",
-            };
+            _ => "HLTB search failed - search in browser",
+        };
 
         return new Result
         {
             Title = title,
 
-            SubTitle =
-                "Press Enter to continue on howlongtobeat.com.",
+            SubTitle = "Press Enter to continue on howlongtobeat.com.",
 
-            QueryTextDisplay =
-                rawQuery,
+            QueryTextDisplay = rawQuery,
 
-            IcoPath =
-                "Images\\howlongtobeat.dark.png",
+            IcoPath = "Images\\howlongtobeat.dark.png",
 
             Score = 100,
 
-            DisableUsageBasedScoring =
-                true,
+            DisableUsageBasedScoring = true,
 
-            Action =
-                _ => OpenUrl(target),
+            Action = _ => OpenUrl(target),
         };
     }
 
-    private bool CopyText(
-        string? value)
+    private bool CopyText(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -715,9 +531,7 @@ public sealed class Main :
         }
         catch
         {
-            _api?.ShowMsg(
-                "HowLongToBeat",
-                "Could not copy text to the clipboard.");
+            _api?.ShowMsg("HowLongToBeat", "Could not copy text to the clipboard.");
 
             return false;
         }
@@ -726,20 +540,16 @@ public sealed class Main :
     private static bool OpenUrl(string? value)
     {
         if (
-            !Uri.TryCreate(
-                value,
-                UriKind.Absolute,
-                out var uri)
+            !Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || (
-                !string.Equals(
-                    uri.Scheme,
-                    Uri.UriSchemeHttp,
-                    StringComparison.OrdinalIgnoreCase)
+                !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(
                     uri.Scheme,
                     Uri.UriSchemeHttps,
-                    StringComparison.OrdinalIgnoreCase)
-            ))
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+        )
         {
             return false;
         }
@@ -749,12 +559,11 @@ public sealed class Main :
             Process.Start(
                 new ProcessStartInfo
                 {
-                    FileName =
-                        uri.AbsoluteUri,
+                    FileName = uri.AbsoluteUri,
 
-                    UseShellExecute =
-                        true,
-                });
+                    UseShellExecute = true,
+                }
+            );
 
             return true;
         }
@@ -764,33 +573,25 @@ public sealed class Main :
         }
     }
 
-    private static string BuildBrowserFallbackUrl(
-        ParsedHltbQuery parsed)
+    private static string BuildBrowserFallbackUrl(ParsedHltbQuery parsed)
     {
         if (parsed.GameId is int gameId)
         {
-            return
-                $"https://howlongtobeat.com/game/{gameId}";
+            return $"https://howlongtobeat.com/game/{gameId}";
         }
 
-        var query =
-            Uri.EscapeDataString(
-                parsed.SearchText
-                ?? string.Empty);
+        var query = Uri.EscapeDataString(parsed.SearchText ?? string.Empty);
 
-        return
-            $"https://howlongtobeat.com/?q={query}";
+        return $"https://howlongtobeat.com/?q={query}";
     }
 
     private void MarkQueryChanged()
     {
-        Interlocked.Increment(
-            ref _queryGeneration);
+        Interlocked.Increment(ref _queryGeneration);
 
         lock (_searchLock)
         {
-            _activeSearchCancellation
-                ?.Cancel();
+            _activeSearchCancellation?.Cancel();
         }
     }
 
@@ -798,40 +599,34 @@ public sealed class Main :
     {
         lock (_searchLock)
         {
-            _activeSearchCancellation
-                ?.Cancel();
+            _activeSearchCancellation?.Cancel();
 
-            var cancellation =
-                new CancellationTokenSource();
+            var cancellation = new CancellationTokenSource();
 
-            _activeSearchCancellation =
-                cancellation;
+            _activeSearchCancellation = cancellation;
 
             return cancellation;
         }
     }
 
     private List<Result> ExecuteIdLookup(
-    IBridgeClient bridge,
-    ParsedHltbQuery parsed,
-    string rawQuery,
-    long generation,
-    CancellationTokenSource cancellation)
+        IBridgeClient bridge,
+        ParsedHltbQuery parsed,
+        string rawQuery,
+        long generation,
+        CancellationTokenSource cancellation
+    )
     {
         WaitForSearchDelay(cancellation.Token);
-        var game =
-            bridge
-                .GetByIdAsync(
-                    parsed.GameId!.Value,
-                    cancellation.Token)
-                .GetAwaiter()
-                .GetResult();
+        var game = bridge
+            .GetByIdAsync(parsed.GameId!.Value, cancellation.Token)
+            .GetAwaiter()
+            .GetResult();
 
         if (
             cancellation.IsCancellationRequested
-            || generation !=
-                Volatile.Read(
-                    ref _queryGeneration))
+            || generation != Volatile.Read(ref _queryGeneration)
+        )
         {
             return [];
         }
@@ -843,63 +638,50 @@ public sealed class Main :
                 CreateInfoResult(
                     "HowLongToBeat game not found",
                     $"No game found for ID {parsed.GameId}.",
-                    rawQuery),
+                    rawQuery
+                ),
             ];
         }
 
-        return
-        [
-            CreateGameResult(
-                game,
-                0),
-        ];
+        return [CreateGameResult(game, 0)];
     }
 
-    private void EndSearch(
-        CancellationTokenSource cancellation)
+    private void EndSearch(CancellationTokenSource cancellation)
     {
         lock (_searchLock)
         {
-            if (ReferenceEquals(
-                    _activeSearchCancellation,
-                    cancellation))
+            if (ReferenceEquals(_activeSearchCancellation, cancellation))
             {
-                _activeSearchCancellation =
-                    null;
+                _activeSearchCancellation = null;
             }
         }
 
         cancellation.Dispose();
     }
 
-    public void UpdateSettings(
-        PowerLauncherPluginSettings settings)
+    public void UpdateSettings(PowerLauncherPluginSettings settings)
     {
-        var idleMinutes =
-            ReadNumberOption(
-                settings,
-                BridgeIdleTimeoutOptionKey,
-                DefaultBridgeIdleTimeoutMinutes,
-                0,
-                MaximumBridgeIdleTimeoutMinutes);
+        var idleMinutes = ReadNumberOption(
+            settings,
+            BridgeIdleTimeoutOptionKey,
+            DefaultBridgeIdleTimeoutMinutes,
+            0,
+            MaximumBridgeIdleTimeoutMinutes
+        );
 
-        var searchDelayMilliseconds =
-            ReadNumberOption(
-                settings,
-                SearchDelayOptionKey,
-                DefaultSearchDelayMilliseconds,
-                0,
-                MaximumSearchDelayMilliseconds);
+        var searchDelayMilliseconds = ReadNumberOption(
+            settings,
+            SearchDelayOptionKey,
+            DefaultSearchDelayMilliseconds,
+            0,
+            MaximumSearchDelayMilliseconds
+        );
 
-        _bridgeIdleTimeoutMinutes =
-            idleMinutes;
+        _bridgeIdleTimeoutMinutes = idleMinutes;
 
-        Volatile.Write(
-            ref _searchDelayMilliseconds,
-            searchDelayMilliseconds);
+        Volatile.Write(ref _searchDelayMilliseconds, searchDelayMilliseconds);
 
-        _idleBridge?.SetIdleTimeout(
-            ToIdleTimeout(idleMinutes));
+        _idleBridge?.SetIdleTimeout(ToIdleTimeout(idleMinutes));
     }
 
     private static int ReadNumberOption(
@@ -907,14 +689,10 @@ public sealed class Main :
         string key,
         int defaultValue,
         int minimum,
-        int maximum)
+        int maximum
+    )
     {
-        var option =
-            settings?
-                .AdditionalOptions?
-                .FirstOrDefault(
-                    item =>
-                        item.Key == key);
+        var option = settings?.AdditionalOptions?.FirstOrDefault(item => item.Key == key);
 
         if (option is null)
         {
@@ -922,30 +700,22 @@ public sealed class Main :
         }
 
         return Math.Clamp(
-            (int)Math.Round(
-                option.NumberValue,
-                MidpointRounding.AwayFromZero),
+            (int)Math.Round(option.NumberValue, MidpointRounding.AwayFromZero),
             minimum,
-            maximum);
+            maximum
+        );
     }
 
-    private void WaitForSearchDelay(
-        CancellationToken cancellationToken)
+    private void WaitForSearchDelay(CancellationToken cancellationToken)
     {
-        var milliseconds =
-            Volatile.Read(
-                ref _searchDelayMilliseconds);
+        var milliseconds = Volatile.Read(ref _searchDelayMilliseconds);
 
         if (milliseconds <= 0)
         {
             return;
         }
 
-        Task.Delay(
-                milliseconds,
-                cancellationToken)
-            .GetAwaiter()
-            .GetResult();
+        Task.Delay(milliseconds, cancellationToken).GetAwaiter().GetResult();
     }
 
     public Control CreateSettingPanel()
@@ -953,12 +723,9 @@ public sealed class Main :
         throw new NotImplementedException();
     }
 
-    private static TimeSpan ToIdleTimeout(
-        int minutes)
+    private static TimeSpan ToIdleTimeout(int minutes)
     {
-        return minutes == 0
-            ? TimeSpan.Zero
-            : TimeSpan.FromMinutes(minutes);
+        return minutes == 0 ? TimeSpan.Zero : TimeSpan.FromMinutes(minutes);
     }
 
     public void Dispose()
@@ -972,8 +739,7 @@ public sealed class Main :
 
         lock (_searchLock)
         {
-            _activeSearchCancellation
-                ?.Cancel();
+            _activeSearchCancellation?.Cancel();
         }
 
         _bridge?.Dispose();

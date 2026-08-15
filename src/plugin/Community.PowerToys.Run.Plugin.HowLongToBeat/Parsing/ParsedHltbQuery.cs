@@ -9,17 +9,14 @@ public sealed record ParsedHltbQuery(
     string? Platform,
     BridgeSearchMode SearchMode,
     string? ErrorTitle = null,
-    string? ErrorMessage = null)
+    string? ErrorMessage = null
+)
 {
-    public bool IsValid =>
-        ErrorTitle is null;
+    public bool IsValid => ErrorTitle is null;
 
-    public bool IsIdLookup =>
-        GameId.HasValue;
+    public bool IsIdLookup => GameId.HasValue;
 
-    public static ParsedHltbQuery Invalid(
-        string title,
-        string message)
+    public static ParsedHltbQuery Invalid(string title, string message)
     {
         return new ParsedHltbQuery(
             SearchText: null,
@@ -28,6 +25,7 @@ public sealed record ParsedHltbQuery(
             Platform: null,
             SearchMode: BridgeSearchMode.All,
             ErrorTitle: title,
-            ErrorMessage: message);
+            ErrorMessage: message
+        );
     }
 }

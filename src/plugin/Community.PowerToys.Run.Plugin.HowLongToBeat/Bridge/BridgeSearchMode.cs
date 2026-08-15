@@ -9,8 +9,7 @@ public enum BridgeSearchMode
 
 internal static class BridgeSearchModeExtensions
 {
-    public static string ToProtocolValue(
-        this BridgeSearchMode mode)
+    public static string ToProtocolValue(this BridgeSearchMode mode)
     {
         return mode switch
         {
@@ -18,10 +17,7 @@ internal static class BridgeSearchModeExtensions
             BridgeSearchMode.HideDlc => "hide_dlc",
             BridgeSearchMode.DlcOnly => "dlc_only",
 
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(mode),
-                mode,
-                null),
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
         };
     }
 }

@@ -4,14 +4,11 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
 {
     private readonly IBridgeClient _inner;
 
-    private readonly SemaphoreSlim _lifecycleLock =
-        new(1, 1);
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
 
-    private readonly object _stateLock =
-        new();
+    private readonly object _stateLock = new();
 
-    private CancellationTokenSource?
-        _idleCancellation;
+    private CancellationTokenSource? _idleCancellation;
 
     private TimeSpan _idleTimeout;
 
@@ -20,14 +17,9 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
     private bool _operationActive;
     private bool _disposed;
 
-    public IdleShutdownBridgeClient(
-        IBridgeClient inner,
-        TimeSpan idleTimeout)
+    public IdleShutdownBridgeClient(IBridgeClient inner, TimeSpan idleTimeout)
     {
-        _inner =
-            inner
-            ?? throw new ArgumentNullException(
-                nameof(inner));
+        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
 
         ValidateTimeout(idleTimeout);
 
@@ -45,8 +37,7 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
         }
     }
 
-    public void SetIdleTimeout(
-        TimeSpan idleTimeout)
+    public void SetIdleTimeout(TimeSpan idleTimeout)
     {
         ThrowIfDisposed();
         ValidateTimeout(idleTimeout);
@@ -66,49 +57,33 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
         }
     }
 
-    public Task<BridgePingResult> PingAsync(
-        CancellationToken cancellationToken = default)
+    public Task<BridgePingResult> PingAsync(CancellationToken cancellationToken = default)
     {
-        return ExecuteTrackedAsync(
-            token =>
-                _inner.PingAsync(token),
-            cancellationToken);
+        return ExecuteTrackedAsync(token => _inner.PingAsync(token), cancellationToken);
     }
 
     public Task<BridgeSearchResult> SearchAsync(
         string query,
-        BridgeSearchMode mode =
-            BridgeSearchMode.All,
-        CancellationToken cancellationToken = default)
+        BridgeSearchMode mode = BridgeSearchMode.All,
+        CancellationToken cancellationToken = default
+    )
     {
         return ExecuteTrackedAsync(
-            token =>
-                _inner.SearchAsync(
-                    query,
-                    mode,
-                    token),
-            cancellationToken);
+            token => _inner.SearchAsync(query, mode, token),
+            cancellationToken
+        );
     }
 
-    public Task<BridgeGame?> GetByIdAsync(
-        int gameId,
-        CancellationToken cancellationToken = default)
+    public Task<BridgeGame?> GetByIdAsync(int gameId, CancellationToken cancellationToken = default)
     {
-        return ExecuteTrackedAsync(
-            token =>
-                _inner.GetByIdAsync(
-                    gameId,
-                    token),
-            cancellationToken);
+        return ExecuteTrackedAsync(token => _inner.GetByIdAsync(gameId, token), cancellationToken);
     }
 
-    public async Task ShutdownAsync(
-        CancellationToken cancellationToken = default)
+    public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        await _lifecycleLock.WaitAsync(
-            cancellationToken);
+        await _lifecycleLock.WaitAsync(cancellationToken);
 
         try
         {
@@ -121,8 +96,7 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
                 _operationActive = true;
             }
 
-            await _inner.ShutdownAsync(
-                cancellationToken);
+            await _inner.ShutdownAsync(cancellationToken);
         }
         finally
         {
@@ -137,12 +111,12 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
 
     private async Task<T> ExecuteTrackedAsync<T>(
         Func<CancellationToken, Task<T>> operation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ThrowIfDisposed();
 
-        await _lifecycleLock.WaitAsync(
-            cancellationToken);
+        await _lifecycleLock.WaitAsync(cancellationToken);
 
         try
         {
@@ -155,8 +129,7 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
                 CancelIdleShutdownNoLock();
             }
 
-            return await operation(
-                cancellationToken);
+            return await operation(cancellationToken);
         }
         finally
         {
@@ -173,48 +146,35 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
 
     private void ScheduleIdleShutdownNoLock()
     {
-        if (
-            _disposed
-            || _operationActive
-            || _idleTimeout <= TimeSpan.Zero)
+        if (_disposed || _operationActive || _idleTimeout <= TimeSpan.Zero)
         {
             return;
         }
 
         CancelIdleShutdownNoLock();
 
-        var cancellation =
-            new CancellationTokenSource();
+        var cancellation = new CancellationTokenSource();
 
-        _idleCancellation =
-            cancellation;
+        _idleCancellation = cancellation;
 
-        var generation =
-            _activityGeneration;
+        var generation = _activityGeneration;
 
-        var delay =
-            _idleTimeout;
+        var delay = _idleTimeout;
 
-        _ =
-            ShutdownAfterIdleAsync(
-                cancellation,
-                generation,
-                delay);
+        _ = ShutdownAfterIdleAsync(cancellation, generation, delay);
     }
 
     private async Task ShutdownAfterIdleAsync(
         CancellationTokenSource cancellation,
         long generation,
-        TimeSpan delay)
+        TimeSpan delay
+    )
     {
         try
         {
-            await Task.Delay(
-                delay,
-                cancellation.Token);
+            await Task.Delay(delay, cancellation.Token);
 
-            await _lifecycleLock.WaitAsync(
-                cancellation.Token);
+            await _lifecycleLock.WaitAsync(cancellation.Token);
 
             try
             {
@@ -223,11 +183,9 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
                     if (
                         _disposed
                         || _operationActive
-                        || generation !=
-                            _activityGeneration
-                        || !ReferenceEquals(
-                            _idleCancellation,
-                            cancellation))
+                        || generation != _activityGeneration
+                        || !ReferenceEquals(_idleCancellation, cancellation)
+                    )
                     {
                         return;
                     }
@@ -237,8 +195,7 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
                     _operationActive = true;
                 }
 
-                await _inner.ShutdownAsync(
-                    CancellationToken.None);
+                await _inner.ShutdownAsync(CancellationToken.None);
             }
             finally
             {
@@ -250,8 +207,7 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
                 _lifecycleLock.Release();
             }
         }
-        catch (OperationCanceledException)
-            when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             // New activity or a setting change
             // superseded this idle timeout.
@@ -268,8 +224,7 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
 
     private void CancelIdleShutdownNoLock()
     {
-        var cancellation =
-            _idleCancellation;
+        var cancellation = _idleCancellation;
 
         _idleCancellation = null;
 
@@ -282,26 +237,20 @@ public sealed class IdleShutdownBridgeClient : IBridgeClient
         {
             cancellation.Cancel();
         }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (ObjectDisposedException) { }
     }
 
-    private static void ValidateTimeout(
-        TimeSpan idleTimeout)
+    private static void ValidateTimeout(TimeSpan idleTimeout)
     {
         if (idleTimeout < TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(idleTimeout));
+            throw new ArgumentOutOfRangeException(nameof(idleTimeout));
         }
     }
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(
-            _disposed,
-            this);
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
     public void Dispose()
