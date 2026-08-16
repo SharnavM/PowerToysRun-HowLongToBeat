@@ -19,9 +19,11 @@ An unofficial PowerToys Run plugin that lets you search games, compare Main Stor
 
 ## Demo
 
-> **Demo placeholder**
->
-> A GIF or short video demonstrating searches, modifiers, settings, and result actions will be added here using GitHub User Attachments.
+
+
+https://github.com/user-attachments/assets/485383d6-b540-4aa5-9506-6a691dd6c156
+
+
 
 ## Features
 
@@ -66,6 +68,13 @@ The plugin uses a C# PowerToys Run frontend together with a packaged Python help
   - C# applies local ranking using title quality, aliases, similarity, release year, platform preference, and result type.
   - Year and platform modifiers influence ranking locally rather than unnecessarily removing potentially useful results.
   - Search responses are cached in memory to reduce repeated network requests.
+ 
+<details>
+<summary>Architecture Image</summary>
+
+<img width="512" alt="HLTB plugin Arch" src="https://github.com/user-attachments/assets/2793641c-ad52-4339-846f-e79515f84d05" />
+
+</details>
 
 #### Configurable Options
 
