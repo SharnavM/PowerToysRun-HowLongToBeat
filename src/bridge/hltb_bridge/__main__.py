@@ -5,6 +5,7 @@ import sys
 import traceback
 
 from .server import BridgeServer
+from .stdio import configure_stdio
 
 
 async def main() -> None:
@@ -14,6 +15,7 @@ async def main() -> None:
 
 if __name__ == "__main__":
     try:
+        configure_stdio()
         asyncio.run(main())
     except KeyboardInterrupt:
         pass

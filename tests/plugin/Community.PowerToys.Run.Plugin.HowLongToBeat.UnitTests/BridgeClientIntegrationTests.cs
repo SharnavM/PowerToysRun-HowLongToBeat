@@ -38,4 +38,39 @@ public sealed class BridgeClientIntegrationTests
         // AppContext.BaseDirectory to contain the bridge.
         Assert.IsNotNull(client);
     }
+
+    [TestMethod]
+    public async Task LiveCyberpunkSearchReturnsResults()
+    {
+        if (
+            !string.Equals(
+                Environment.GetEnvironmentVariable("HLTB_RUN_LIVE_TESTS"),
+                "1",
+                StringComparison.Ordinal
+            )
+        )
+        {
+            Assert.Inconclusive("Set HLTB_RUN_LIVE_TESTS=1 to run live HLTB tests.");
+
+            return;
+        }
+
+        var bridgePath = Environment.GetEnvironmentVariable("HLTB_BRIDGE_EXE");
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(bridgePath));
+
+        Assert.IsTrue(File.Exists(bridgePath));
+
+        using var client = new BridgeClient(bridgePath!, TimeSpan.FromSeconds(10));
+
+        var result = await client.SearchAsync("Cyberpunk");
+
+        Assert.IsGreaterThan(0, result.Count);
+
+        Assert.IsTrue(
+            result.Results.Any(game => game.GameId == 2127 && game.Name == "Cyberpunk 2077")
+        );
+
+        await client.ShutdownAsync();
+    }
 }
