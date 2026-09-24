@@ -2,7 +2,7 @@
 
 This directory contains license texts and notices for third-party software used by, bundled into, or involved in producing the packaged HowLongToBeat bridge.
 
-The current bridge pins `howlongtobeatpy==1.0.22`. That release declares these direct dependencies: `aiohttp~=3.12`, `requests~=2.32`, `aiounittest~=1.5`, `fake_useragent~=2.2`, and `beautifulsoup4~=4.13`. The packaged bridge also includes Python and is produced with PyInstaller. License files for common transitive dependencies bundled by those packages are included here as well.
+The current bridge pins `howlongtobeatpy==1.0.23`. That release declares these direct dependencies: `aiohttp~=3.14`, `requests~=2.34`, `aiounittest~=1.5`, `fake_useragent~=2.2`, and `beautifulsoup4~=4.15`. The packaged bridge also includes Python and is produced with PyInstaller. License files for common transitive dependencies bundled by those packages are included here as well.
 
 Included notices cover:
 

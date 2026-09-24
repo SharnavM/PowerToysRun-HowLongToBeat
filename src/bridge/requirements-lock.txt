@@ -10,7 +10,7 @@ charset-normalizer==3.4.9
 colorama==0.4.6
 fake-useragent==2.2.0
 frozenlist==1.8.0
-howlongtobeatpy==1.0.22
+howlongtobeatpy==1.0.23
 idna==3.18
 iniconfig==2.3.0
 multidict==6.7.1
